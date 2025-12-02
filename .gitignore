@@ -1,0 +1,62 @@
+# Build & generated artifacts
+build/
+*/build/
+CMakeFiles/
+CMakeCache.txt
+*.ninja
+*.ninja_deps
+*.ninja_log
+*.obj
+*.o
+*.pdb
+*.lib
+*.dll
+*.exe
+*.so
+*.a
+*.qmake.stash
+*.qrc.depends
+*.rcc
+*.qm
+Testing/
+
+# Qt / Qt Creator
+*.user
+*.pro.user*
+.qtcreator/
+.qt/
+.qtc/
+.qtc_clangd/
+*.autosave
+*.qmlproject.user*
+
+# IDE / OS specifics
+.vscode/
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Logs & misc
+*.log
+*.swp
+*.swo
+*.tmp
+.cache/
+
+# Node / pnpm (if integrating micro services later)
+node_modules/
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Go
+bin/
+*.test
+
+# Secrets / configs
+.env
+*.env.local
+config/*.json
+!config/**/*template.json
+init_flights.sql.bak
