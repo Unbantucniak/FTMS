@@ -159,22 +159,43 @@ const QString DARK_THEME = R"(
     QLabel#SeatsLabel { font-size: 13px; color: #cdd3ec; }
     QLabel#ArrowLabel { color: #717da3; font-weight: bold; }
     
-    /* 操作按钮样式 (预订 / 改签 / 取消统一) */
+    /* 操作按钮样式 (统一结构，不同配色) */
     QPushButton#BookBtn,
     QPushButton#ChangeBtn,
     QPushButton#CancelBtn {
-        background-color: rgba(255, 107, 107, 0.15);
-        color: #ff9c9c;
-        border: 1px solid #ff9c9c;
         border-radius: 18px;
         padding: 8px 28px;
         font-weight: 600;
         min-width: 120px;
+        border-width: 1px;
     }
-    QPushButton#BookBtn:hover,
-    QPushButton#ChangeBtn:hover,
-    QPushButton#CancelBtn:hover {
-        background-color: #ff6b6b;
+    QPushButton#BookBtn {
+        background-color: rgba(90, 143, 255, 0.15);
+        color: #a5c4ff;
+        border-color: #7fa7ff;
+    }
+    QPushButton#BookBtn:hover {
+        background-color: #4b7bec;
+        color: #0e1833;
+        border-color: #4b7bec;
+    }
+    QPushButton#ChangeBtn {
+        background-color: rgba(61, 214, 190, 0.15);
+        color: #7de5d4;
+        border-color: #46cdb8;
+    }
+    QPushButton#ChangeBtn:hover {
+        background-color: #2dd4bf;
+        color: #082027;
+        border-color: #2dd4bf;
+    }
+    QPushButton#CancelBtn {
+        background-color: rgba(255, 107, 107, 0.15);
+        color: #ff9c9c;
+        border-color: #ff9c9c;
+    }
+    QPushButton#CancelBtn:hover { 
+        background-color: #ff6b6b; 
         color: #1b0c0c;
         border-color: #ff6b6b;
     }
@@ -347,20 +368,41 @@ const QString LIGHT_THEME = R"(
     QLabel#SeatsLabel { font-size: 13px; color: #4b556b; }
     QLabel#ArrowLabel { color: #a9b2c4; font-weight: bold; }
 
-    /* 操作按钮样式 (预订 / 改签 / 取消统一) */
+    /* 操作按钮样式 (统一结构，不同配色) */
     QPushButton#BookBtn,
     QPushButton#ChangeBtn,
     QPushButton#CancelBtn {
-        background-color: rgba(239, 68, 68, 0.12);
-        color: #d14343;
-        border: 1px solid #f19999;
         border-radius: 18px;
         padding: 8px 28px;
         font-weight: 600;
         min-width: 120px;
+        border-width: 1px;
     }
-    QPushButton#BookBtn:hover,
-    QPushButton#ChangeBtn:hover,
+    QPushButton#BookBtn {
+        background-color: rgba(71, 137, 255, 0.12);
+        color: #2b63c7;
+        border-color: #4b7bec;
+    }
+    QPushButton#BookBtn:hover {
+        background-color: #4b7bec;
+        color: #ffffff;
+        border-color: #4b7bec;
+    }
+    QPushButton#ChangeBtn {
+        background-color: rgba(45, 212, 191, 0.12);
+        color: #0f766e;
+        border-color: #10b981;
+    }
+    QPushButton#ChangeBtn:hover {
+        background-color: #10b981;
+        color: #ffffff;
+        border-color: #10b981;
+    }
+    QPushButton#CancelBtn {
+        background-color: rgba(239, 68, 68, 0.12);
+        color: #d14343;
+        border-color: #f19999;
+    }
     QPushButton#CancelBtn:hover { 
         background-color: #ef4444; 
         color: #fff;
