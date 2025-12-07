@@ -17,7 +17,9 @@ enum RequestType {
     CancelTicketRequest,    // 取消订单请求
     RegisterRequest,        // 注册请求
     ChangeTicketRequest,    // 改签请求
-    CheckUsernameRequest    // 检查用户名请求
+    CheckUsernameRequest,   // 检查用户名请求
+    GetCitiesRequest,       // 获取城市列表请求
+    GetOccupiedSeatsRequest // 获取已占座位请求
 };
 
 // 响应结果

@@ -61,6 +61,12 @@ void ClientHandler::onReadyRead() {
     case CheckUsernameRequest:
         handleCheckUsernameRequest(data);
         break;
+    case GetCitiesRequest:
+        handleGetCitiesRequest(data);
+        break;
+    case GetOccupiedSeatsRequest:
+        handleGetOccupiedSeatsRequest(data);
+        break;
     default:
         sendResponse(Failed);
         qDebug() << "收到未知请求类型：" << requestType;
@@ -103,10 +109,15 @@ void ClientHandler::handleFlightQueryRequest(const QByteArray& data) {
 
 void ClientHandler::handleBookTicketRequest(const QByteArray& data) {
     QDataStream in(data);
-    QString username, flight_id;
-    in >> username >> flight_id;
+    QString username, flight_id, seat_number;
+    in >> username >> flight_id >> seat_number;
 
-    QString orderId = DBManager::getInstance()->bookTicket(username, flight_id);
+    QString orderId;
+    if (seat_number.isEmpty()) {
+        orderId = DBManager::getInstance()->bookTicket(username, flight_id);
+    } else {
+        orderId = DBManager::getInstance()->bookTicketWithSeat(username, flight_id, seat_number);
+    }
 
     QByteArray responseData;
     QDataStream out(&responseData, QIODevice::WriteOnly);
@@ -126,7 +137,7 @@ void ClientHandler::handleBookTicketRequest(const QByteArray& data) {
     }
 
     sendResponse(status, responseData);
-    qDebug() << "订票请求 - 用户名：" << username << " 航班号：" << flight_id << " 订单号：" << (orderId.isEmpty() ? "无" : orderId);
+    qDebug() << "订票请求 - 用户名：" << username << " 航班号：" << flight_id << " 座位：" << seat_number << " 订单号：" << (orderId.isEmpty() ? "无" : orderId);
 }
 
 void ClientHandler::handleMyOrdersRequest(const QByteArray& data) {
@@ -218,6 +229,34 @@ void ClientHandler::handleCheckUsernameRequest(const QByteArray& data) {
     sendResponse(exist ? UsernameExist : Success);
     
     qDebug() << "检查用户名请求 - 用户名：" << username << " 存在：" << exist;
+}
+
+void ClientHandler::handleGetCitiesRequest(const QByteArray& /*data*/) {
+    QStringList cities = DBManager::getInstance()->getCities();
+
+    QByteArray responseData;
+    QDataStream out(&responseData, QIODevice::WriteOnly);
+    out.setVersion(QDataStream::Qt_6_0);
+    out << cities;
+
+    sendResponse(Success, responseData);
+    qDebug() << "城市列表请求 - 返回城市数：" << cities.size();
+}
+
+void ClientHandler::handleGetOccupiedSeatsRequest(const QByteArray& data) {
+    QDataStream in(data);
+    QString flightId;
+    in >> flightId;
+
+    QStringList seats = DBManager::getInstance()->getOccupiedSeats(flightId);
+
+    QByteArray responseData;
+    QDataStream out(&responseData, QIODevice::WriteOnly);
+    out.setVersion(QDataStream::Qt_6_0);
+    out << seats;
+
+    sendResponse(Success, responseData);
+    qDebug() << "已占座位请求 - 航班：" << flightId << " 已占座位数：" << seats.size();
 }
 
 void ClientHandler::sendResponse(ResponseStatus status, const QByteArray& data) {

@@ -83,7 +83,7 @@ void TcpClient::queryFlights(const QString& departure, const QString& destinatio
     m_socket->write(data);
 }
 
-void TcpClient::bookTicket(const QString& username, const QString& flightId)
+void TcpClient::bookTicket(const QString& username, const QString& flightId, const QString& seatNumber)
 {
     if (m_socket->state() != QAbstractSocket::ConnectedState) return;
 
@@ -96,7 +96,7 @@ void TcpClient::bookTicket(const QString& username, const QString& flightId)
     QByteArray requestData;
     QDataStream requestOut(&requestData, QIODevice::WriteOnly);
     requestOut.setVersion(QDataStream::Qt_6_0);
-    requestOut << username << flightId;
+    requestOut << username << flightId << seatNumber;
     out << requestData;
     
     m_socket->write(data);
@@ -214,6 +214,37 @@ void TcpClient::checkUsername(const QString& username) {
     m_socket->flush();
 }
 
+void TcpClient::getCities() {
+    if(m_socket->state() != QAbstractSocket::ConnectedState) return;
+    m_lastRequestType = GetCitiesRequest;
+    
+    QByteArray request;
+    QDataStream reqOut(&request, QIODevice::WriteOnly);
+    reqOut.setVersion(QDataStream::Qt_6_0);
+    reqOut << (int)GetCitiesRequest << QByteArray();
+    
+    m_socket->write(request);
+    m_socket->flush();
+}
+
+void TcpClient::getOccupiedSeats(const QString& flightId) {
+    if(m_socket->state() != QAbstractSocket::ConnectedState) return;
+    m_lastRequestType = GetOccupiedSeatsRequest;
+    
+    QByteArray data;
+    QDataStream out(&data, QIODevice::WriteOnly);
+    out.setVersion(QDataStream::Qt_6_0);
+    out << flightId;
+    
+    QByteArray request;
+    QDataStream reqOut(&request, QIODevice::WriteOnly);
+    reqOut.setVersion(QDataStream::Qt_6_0);
+    reqOut << (int)GetOccupiedSeatsRequest << data;
+    
+    m_socket->write(request);
+    m_socket->flush();
+}
+
 void TcpClient::onReadyRead()
 {
     QDataStream in(m_socket);
@@ -296,6 +327,22 @@ void TcpClient::onReadyRead()
     }
     case CheckUsernameRequest: {
         emit checkUsernameResult(status == UsernameExist);
+        break;
+    }
+    case GetCitiesRequest: {
+        QStringList cities;
+        if (status == Success) {
+            dataIn >> cities;
+        }
+        emit citiesResult(cities);
+        break;
+    }
+    case GetOccupiedSeatsRequest: {
+        QStringList seats;
+        if (status == Success) {
+            dataIn >> seats;
+        }
+        emit occupiedSeatsResult(seats);
         break;
     }
     default:

@@ -26,6 +26,7 @@ public:
                                const QDate& date);
 
     QString bookTicket(const QString& username, const QString& flight_id);
+    QString bookTicketWithSeat(const QString& username, const QString& flightId, const QString& seatNumber);
 
     QList<Order> queryUserOrders(const QString& username);
     User getUserInfo(const QString& username);
@@ -38,6 +39,8 @@ public:
     bool isUserExist(const QString& username);
 
     int getRestSeats(const QString& flight_id);
+    QStringList getCities();
+    QStringList getOccupiedSeats(const QString& flightId);
     void close();
 
 private:

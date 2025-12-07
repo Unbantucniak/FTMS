@@ -2,6 +2,7 @@
 #include "network/tcp_client.h"
 #include <QMessageBox>
 #include <QRegularExpression>
+#include <QGraphicsDropShadowEffect>
 
 RegisterPage::RegisterPage(QWidget *parent) : QWidget(parent) {
     setupUI();
@@ -14,21 +15,15 @@ RegisterPage::RegisterPage(QWidget *parent) : QWidget(parent) {
         QString phone = phoneEdit->text();
 
         if (username.isEmpty() || password.isEmpty() || realName.isEmpty() || phone.isEmpty()) {
-            QMessageBox msgBox(this);
-            msgBox.setWindowTitle("提示");
-            msgBox.setText("请填写所有信息");
-            msgBox.setStandardButtons(QMessageBox::Ok);
-            msgBox.setButtonText(QMessageBox::Ok, "确定");
-            msgBox.exec();
+            showMessage("提示", "请填写所有信息", false);
             return;
         }
         if (password != confirm) {
-            QMessageBox msgBox(this);
-            msgBox.setWindowTitle("提示");
-            msgBox.setText("两次密码输入不一致");
-            msgBox.setStandardButtons(QMessageBox::Ok);
-            msgBox.setButtonText(QMessageBox::Ok, "确定");
-            msgBox.exec();
+            showMessage("提示", "两次密码输入不一致", false);
+            return;
+        }
+        if (password.length() < 6) {
+            showMessage("提示", "密码长度至少6位", false);
             return;
         }
 
@@ -47,30 +42,20 @@ RegisterPage::RegisterPage(QWidget *parent) : QWidget(parent) {
 
     connect(TcpClient::getInstance(), &TcpClient::registerResult, this, [this](bool success){
         if (success) {
-            QMessageBox msgBox(this);
-            msgBox.setWindowTitle("注册成功");
-            msgBox.setText("注册成功，请登录");
-            msgBox.setStandardButtons(QMessageBox::Ok);
-            msgBox.setButtonText(QMessageBox::Ok, "确定");
-            msgBox.exec();
+            showMessage("注册成功", "🎉 注册成功，请登录", true);
             this->close();
         } else {
-            QMessageBox msgBox(this);
-            msgBox.setWindowTitle("注册失败");
-            msgBox.setText("用户名可能已存在");
-            msgBox.setStandardButtons(QMessageBox::Ok);
-            msgBox.setButtonText(QMessageBox::Ok, "确定");
-            msgBox.exec();
+            showMessage("注册失败", "用户名可能已存在", false);
         }
     });
 
     connect(TcpClient::getInstance(), &TcpClient::checkUsernameResult, this, [this](bool exist){
         if (exist) {
-            usernameStatusLabel->setText("用户名已存在");
-            usernameStatusLabel->setStyleSheet("color: red; font-size: 12px;");
+            usernameStatusLabel->setText("✗ 用户名已存在");
+            usernameStatusLabel->setStyleSheet("color: #ef4444; font-size: 12px; font-weight: 500;");
         } else {
-            usernameStatusLabel->setText("用户名可用");
-            usernameStatusLabel->setStyleSheet("color: green; font-size: 12px;");
+            usernameStatusLabel->setText("✓ 用户名可用");
+            usernameStatusLabel->setStyleSheet("color: #22c55e; font-size: 12px; font-weight: 500;");
         }
     });
 
@@ -88,99 +73,250 @@ RegisterPage::RegisterPage(QWidget *parent) : QWidget(parent) {
             return;
         }
         if (p1 == p2) {
-            passwordStatusLabel->setText("密码一致");
-            passwordStatusLabel->setStyleSheet("color: green; font-size: 12px;");
+            passwordStatusLabel->setText("✓ 密码一致");
+            passwordStatusLabel->setStyleSheet("color: #22c55e; font-size: 12px; font-weight: 500;");
         } else {
-            passwordStatusLabel->setText("密码不一致");
-            passwordStatusLabel->setStyleSheet("color: red; font-size: 12px;");
+            passwordStatusLabel->setText("✗ 密码不一致");
+            passwordStatusLabel->setStyleSheet("color: #ef4444; font-size: 12px; font-weight: 500;");
         }
     };
     connect(passwordEdit, &QLineEdit::textChanged, this, checkPassword);
     connect(confirmPasswordEdit, &QLineEdit::textChanged, this, checkPassword);
 }
 
-void RegisterPage::setupUI() {
-    this->setWindowTitle("用户注册");
-    this->setMinimumSize(450, 600);
-    this->resize(450, 600);
-    this->setStyleSheet(R"(
-        QWidget { background-color: #f0f2f5; font-family: 'Segoe UI', 'Microsoft YaHei'; }
-        QLineEdit { 
-            padding: 10px; 
-            border: 1px solid #dcdfe6; 
-            border-radius: 5px; 
-            font-size: 14px;
-            background-color: white;
-            color: #333;
-        }
-        QLineEdit:focus { border: 1px solid #0078d7; }
+void RegisterPage::showMessage(const QString& title, const QString& text, bool success) {
+    QMessageBox msgBox(this);
+    msgBox.setWindowTitle(title);
+    msgBox.setText(text);
+    msgBox.setIcon(success ? QMessageBox::Information : QMessageBox::Warning);
+    msgBox.setStyleSheet(R"(
+        QMessageBox { background-color: #1e293b; }
+        QMessageBox QLabel { color: #f1f5f9; font-size: 14px; }
         QPushButton { 
-            padding: 10px; 
-            border-radius: 5px; 
-            font-size: 16px; 
+            background-color: #3b82f6; 
+            color: white;
+            border: none; 
+            border-radius: 6px; 
+            padding: 8px 24px;
             font-weight: bold;
         }
-        QLabel { font-size: 14px; color: #333; }
+        QPushButton:hover { background-color: #2563eb; }
     )");
+    msgBox.exec();
+}
+
+void RegisterPage::setupUI() {
+    this->setWindowTitle("扶摇航空 - 注册");
+    this->setMinimumSize(500, 680);
+    this->resize(500, 720);
+    
+    // 深色背景
+    this->setStyleSheet(R"(
+        QWidget#RegisterPage { 
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                stop:0 #0f172a, stop:1 #1e293b);
+        }
+    )");
+    this->setObjectName("RegisterPage");
 
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
-    mainLayout->setContentsMargins(40, 40, 40, 40);
-    mainLayout->setSpacing(20);
+    mainLayout->setContentsMargins(60, 40, 60, 40);
+    mainLayout->setSpacing(0);
+    mainLayout->setAlignment(Qt::AlignCenter);
 
-    QLabel *titleLabel = new QLabel("新用户注册", this);
-    titleLabel->setStyleSheet("font-size: 24px; font-weight: bold; color: #333; margin-bottom: 20px;");
+    // 注册卡片
+    QWidget *card = new QWidget(this);
+    card->setObjectName("RegisterCard");
+    card->setFixedSize(380, 620);
+    card->setStyleSheet(R"(
+        QWidget#RegisterCard {
+            background-color: #1e293b;
+            border-radius: 16px;
+            border: 1px solid #334155;
+        }
+    )");
+    
+    // 阴影效果
+    QGraphicsDropShadowEffect *shadow = new QGraphicsDropShadowEffect(card);
+    shadow->setBlurRadius(40);
+    shadow->setColor(QColor(0, 0, 0, 80));
+    shadow->setOffset(0, 10);
+    card->setGraphicsEffect(shadow);
+
+    QVBoxLayout *cardLayout = new QVBoxLayout(card);
+    cardLayout->setContentsMargins(35, 35, 35, 30);
+    cardLayout->setSpacing(0);
+
+    // Logo
+    QLabel *logoLabel = new QLabel("✈", card);
+    logoLabel->setStyleSheet("font-size: 40px;");
+    logoLabel->setAlignment(Qt::AlignCenter);
+    cardLayout->addWidget(logoLabel);
+    
+    cardLayout->addSpacing(8);
+
+    // 标题
+    QLabel *titleLabel = new QLabel("创建新账户", card);
+    titleLabel->setStyleSheet("font-size: 24px; font-weight: bold; color: #f1f5f9;");
     titleLabel->setAlignment(Qt::AlignCenter);
-    mainLayout->addWidget(titleLabel);
+    cardLayout->addWidget(titleLabel);
 
-    QFormLayout *formLayout = new QFormLayout();
-    formLayout->setSpacing(15);
+    QLabel *subtitleLabel = new QLabel("加入扶摇航空，开启您的旅程", card);
+    subtitleLabel->setStyleSheet("font-size: 13px; color: #64748b; margin-top: 5px;");
+    subtitleLabel->setAlignment(Qt::AlignCenter);
+    cardLayout->addWidget(subtitleLabel);
 
-    usernameEdit = new QLineEdit(this);
-    usernameEdit->setPlaceholderText("用户名");
-    usernameStatusLabel = new QLabel("", this);
-    QVBoxLayout *userLayout = new QVBoxLayout();
-    userLayout->addWidget(usernameEdit);
-    userLayout->addWidget(usernameStatusLabel);
-    userLayout->setSpacing(2);
-    userLayout->setContentsMargins(0,0,0,0);
-    // formLayout->addRow("用户名:", usernameEdit); // Replace this
-    formLayout->addRow("用户名:", userLayout);
+    cardLayout->addSpacing(25);
 
-    realNameEdit = new QLineEdit(this);
-    realNameEdit->setPlaceholderText("真实姓名");
-    formLayout->addRow("真实姓名:", realNameEdit);
+    // 表单样式
+    QString inputStyle = R"(
+        QLineEdit {
+            padding: 12px 16px;
+            border: 2px solid #334155;
+            border-radius: 10px;
+            font-size: 14px;
+            color: #f1f5f9;
+            background-color: #0f172a;
+        }
+        QLineEdit:focus {
+            border-color: #3b82f6;
+            background-color: #1e293b;
+        }
+        QLineEdit::placeholder {
+            color: #64748b;
+        }
+    )";
+    
+    QString labelStyle = "font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 4px;";
 
-    phoneEdit = new QLineEdit(this);
-    phoneEdit->setPlaceholderText("联系电话");
-    formLayout->addRow("联系电话:", phoneEdit);
+    // 用户名
+    QLabel *userLabel = new QLabel("用户名", card);
+    userLabel->setStyleSheet(labelStyle);
+    cardLayout->addWidget(userLabel);
+    
+    usernameEdit = new QLineEdit(card);
+    usernameEdit->setPlaceholderText("请输入用户名");
+    usernameEdit->setMinimumHeight(44);
+    usernameEdit->setStyleSheet(inputStyle);
+    cardLayout->addWidget(usernameEdit);
+    
+    usernameStatusLabel = new QLabel("", card);
+    usernameStatusLabel->setFixedHeight(18);
+    cardLayout->addWidget(usernameStatusLabel);
 
-    passwordEdit = new QLineEdit(this);
+    // 真实姓名
+    QLabel *nameLabel = new QLabel("真实姓名", card);
+    nameLabel->setStyleSheet(labelStyle);
+    cardLayout->addWidget(nameLabel);
+    
+    realNameEdit = new QLineEdit(card);
+    realNameEdit->setPlaceholderText("请输入真实姓名");
+    realNameEdit->setMinimumHeight(44);
+    realNameEdit->setStyleSheet(inputStyle);
+    cardLayout->addWidget(realNameEdit);
+    
+    cardLayout->addSpacing(12);
+
+    // 手机号
+    QLabel *phoneLabel = new QLabel("手机号", card);
+    phoneLabel->setStyleSheet(labelStyle);
+    cardLayout->addWidget(phoneLabel);
+    
+    phoneEdit = new QLineEdit(card);
+    phoneEdit->setPlaceholderText("请输入手机号");
+    phoneEdit->setMinimumHeight(44);
+    phoneEdit->setStyleSheet(inputStyle);
+    cardLayout->addWidget(phoneEdit);
+    
+    cardLayout->addSpacing(12);
+
+    // 密码
+    QLabel *passLabel = new QLabel("密码", card);
+    passLabel->setStyleSheet(labelStyle);
+    cardLayout->addWidget(passLabel);
+    
+    passwordEdit = new QLineEdit(card);
     passwordEdit->setEchoMode(QLineEdit::Password);
-    passwordEdit->setPlaceholderText("密码");
-    formLayout->addRow("密码:", passwordEdit);
+    passwordEdit->setPlaceholderText("请输入密码（至少6位）");
+    passwordEdit->setMinimumHeight(44);
+    passwordEdit->setStyleSheet(inputStyle);
+    cardLayout->addWidget(passwordEdit);
+    
+    cardLayout->addSpacing(12);
 
-    confirmPasswordEdit = new QLineEdit(this);
+    // 确认密码
+    QLabel *confirmLabel = new QLabel("确认密码", card);
+    confirmLabel->setStyleSheet(labelStyle);
+    cardLayout->addWidget(confirmLabel);
+    
+    confirmPasswordEdit = new QLineEdit(card);
     confirmPasswordEdit->setEchoMode(QLineEdit::Password);
-    confirmPasswordEdit->setPlaceholderText("确认密码");
+    confirmPasswordEdit->setPlaceholderText("请再次输入密码");
+    confirmPasswordEdit->setMinimumHeight(44);
+    confirmPasswordEdit->setStyleSheet(inputStyle);
+    cardLayout->addWidget(confirmPasswordEdit);
     
-    passwordStatusLabel = new QLabel("", this);
-    QVBoxLayout *passLayout = new QVBoxLayout();
-    passLayout->addWidget(confirmPasswordEdit);
-    passLayout->addWidget(passwordStatusLabel);
-    passLayout->setSpacing(2);
-    passLayout->setContentsMargins(0,0,0,0);
-    
-    formLayout->addRow("确认密码:", passLayout);
+    passwordStatusLabel = new QLabel("", card);
+    passwordStatusLabel->setFixedHeight(18);
+    cardLayout->addWidget(passwordStatusLabel);
 
-    mainLayout->addLayout(formLayout);
+    cardLayout->addSpacing(10);
 
-    registerBtn = new QPushButton("立即注册", this);
-    registerBtn->setStyleSheet("background-color: #28a745; color: white; border: none;");
+    // 注册按钮
+    registerBtn = new QPushButton("注 册", card);
+    registerBtn->setMinimumHeight(48);
     registerBtn->setCursor(Qt::PointingHandCursor);
-    mainLayout->addWidget(registerBtn);
+    registerBtn->setStyleSheet(R"(
+        QPushButton {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 #22c55e, stop:1 #16a34a);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        QPushButton:hover {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 #16a34a, stop:1 #15803d);
+        }
+        QPushButton:pressed {
+            background-color: #15803d;
+        }
+    )");
+    cardLayout->addWidget(registerBtn);
 
-    backBtn = new QPushButton("返回登录", this);
-    backBtn->setStyleSheet("background-color: transparent; color: #0078d7; border: none; text-decoration: underline;");
+    cardLayout->addSpacing(12);
+
+    // 返回登录
+    QHBoxLayout *backLayout = new QHBoxLayout();
+    QLabel *hintLabel = new QLabel("已有账户？", card);
+    hintLabel->setStyleSheet("font-size: 13px; color: #64748b;");
+    
+    backBtn = new QPushButton("返回登录", card);
     backBtn->setCursor(Qt::PointingHandCursor);
-    mainLayout->addWidget(backBtn);
+    backBtn->setStyleSheet(R"(
+        QPushButton {
+            background: transparent;
+            color: #3b82f6;
+            border: none;
+            font-size: 13px;
+            font-weight: bold;
+            text-decoration: underline;
+            padding: 0;
+        }
+        QPushButton:hover {
+            color: #60a5fa;
+        }
+    )");
+    
+    backLayout->addStretch();
+    backLayout->addWidget(hintLabel);
+    backLayout->addWidget(backBtn);
+    backLayout->addStretch();
+    cardLayout->addLayout(backLayout);
+
+    cardLayout->addStretch();
+
+    mainLayout->addWidget(card, 0, Qt::AlignCenter);
 }

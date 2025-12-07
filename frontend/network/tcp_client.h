@@ -13,7 +13,7 @@ public:
     void connectToServer(const QString& ip, int port);
     void login(const QString& username, const QString& password);
     void queryFlights(const QString& departure, const QString& destination, const QDate& date);
-    void bookTicket(const QString& username, const QString& flightId);
+    void bookTicket(const QString& username, const QString& flightId, const QString& seatNumber = QString());
     void queryOrders(const QString& username);
     void getUserInfo(const QString& username);
     void updateUserInfo(const User& user);
@@ -21,6 +21,8 @@ public:
     void changeTicket(const QString& orderId, const QString& newFlightId);
     void registerUser(const User& user);
     void checkUsername(const QString& username);
+    void getCities();
+    void getOccupiedSeats(const QString& flightId);
 
 signals:
     void loginResult(ResponseStatus status);
@@ -33,6 +35,8 @@ signals:
     void updateUserInfoResult(bool success);
     void cancelTicketResult(bool success);
     void changeTicketResult(bool success);
+    void citiesResult(const QStringList& cities);
+    void occupiedSeatsResult(const QStringList& seats);
 
 private slots:
     void onReadyRead();

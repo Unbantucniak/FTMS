@@ -72,14 +72,17 @@ QList<Flight> DBManager::queryFlights(const QString& departure, const QString& d
 
     QString sql = "SELECT flight_id, departure, destination, departure_airport, arrival_airport, depart_time, arrive_time, price, rest_seats "
                   "FROM flight WHERE rest_seats > 0";
-    if (!departure.isEmpty())  sql += " AND departure = :departure";
-    if (!destination.isEmpty()) sql += " AND destination = :destination";
+    // 使用 LIKE 进行部分匹配
+    if (!departure.isEmpty())  sql += " AND departure LIKE :departure";
+    if (!destination.isEmpty()) sql += " AND destination LIKE :destination";
     if (date.isValid())        sql += " AND DATE(depart_time) = :date";
+    // 按起飞时间升序排列
+    sql += " ORDER BY depart_time ASC";
 
     QSqlQuery query(m_db);
     query.prepare(sql);
-    if (!departure.isEmpty())  query.bindValue(":departure", departure);
-    if (!destination.isEmpty()) query.bindValue(":destination", destination);
+    if (!departure.isEmpty())  query.bindValue(":departure", "%" + departure + "%");
+    if (!destination.isEmpty()) query.bindValue(":destination", "%" + destination + "%");
     if (date.isValid())        query.bindValue(":date", date.toString("yyyy-MM-dd"));
 
     if (query.exec()) {
@@ -182,12 +185,13 @@ QList<Order> DBManager::queryUserOrders(const QString& username) {
     if (!m_db.isOpen()) return orders;
 
     QSqlQuery query(m_db);
-    // 关联航班表以获取行程详情
+    // 关联航班表以获取行程详情，按出发时间倒序
     query.prepare("SELECT t.order_id, t.username, t.flight_id, t.book_time, t.seat_number, "
                   "f.departure, f.destination, f.departure_airport, f.arrival_airport, f.depart_time, f.arrive_time "
                   "FROM ticket t "
                   "JOIN flight f ON t.flight_id = f.flight_id "
-                  "WHERE t.username = :username");
+                  "WHERE t.username = :username "
+                  "ORDER BY f.depart_time DESC");
     query.bindValue(":username", username);
 
     if (query.exec()) {
@@ -392,6 +396,98 @@ bool DBManager::isUserExist(const QString& username) {
         return query.value(0).toInt() > 0;
     }
     return false;
+}
+
+QStringList DBManager::getCities() {
+    QStringList cities;
+    if (!m_db.isOpen()) return cities;
+
+    QSqlQuery query(m_db);
+    // 获取所有不重复的出发地和目的地
+    query.prepare("SELECT DISTINCT departure FROM flight UNION SELECT DISTINCT destination FROM flight ORDER BY 1");
+    if (query.exec()) {
+        while (query.next()) {
+            cities.append(query.value(0).toString());
+        }
+    }
+    return cities;
+}
+
+QStringList DBManager::getOccupiedSeats(const QString& flightId) {
+    QStringList seats;
+    if (!m_db.isOpen()) return seats;
+
+    QSqlQuery query(m_db);
+    query.prepare("SELECT seat_number FROM ticket WHERE flight_id = :flightId");
+    query.bindValue(":flightId", flightId);
+    if (query.exec()) {
+        while (query.next()) {
+            seats.append(query.value(0).toString());
+        }
+    }
+    return seats;
+}
+
+QString DBManager::bookTicketWithSeat(const QString& username, const QString& flightId, const QString& seatNumber) {
+    if (!m_db.isOpen()) return "";
+    if (!m_db.transaction()) {
+        qDebug() << "无法开启事务：" << m_db.lastError().text();
+        return "";
+    }
+
+    QSqlQuery query(m_db);
+    // 检查航班是否存在且有余票
+    query.prepare("SELECT rest_seats FROM flight WHERE flight_id = :flightId FOR UPDATE");
+    query.bindValue(":flightId", flightId);
+    if (!query.exec() || !query.next()) {
+        m_db.rollback();
+        qDebug() << "航班不存在：" << flightId;
+        return "";
+    }
+    int remaining = query.value(0).toInt();
+    if (remaining <= 0) {
+        m_db.rollback();
+        qDebug() << "航班无剩余座位：" << flightId;
+        return "";
+    }
+
+    // 检查座位是否已被占用
+    query.prepare("SELECT COUNT(*) FROM ticket WHERE flight_id = :flightId AND seat_number = :seat");
+    query.bindValue(":flightId", flightId);
+    query.bindValue(":seat", seatNumber);
+    if (!query.exec() || !query.next() || query.value(0).toInt() > 0) {
+        m_db.rollback();
+        qDebug() << "座位已被占用：" << seatNumber;
+        return "";
+    }
+
+    QString orderId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    query.prepare("INSERT INTO ticket (order_id, username, flight_id, book_time, status, seat_number) "
+                  "VALUES (:orderId, :username, :flightId, NOW(), 1, :seat)");
+    query.bindValue(":orderId", orderId);
+    query.bindValue(":username", username);
+    query.bindValue(":flightId", flightId);
+    query.bindValue(":seat", seatNumber);
+    if (!query.exec()) {
+        m_db.rollback();
+        qDebug() << "订单插入失败：" << query.lastError().text();
+        return "";
+    }
+
+    query.prepare("UPDATE flight SET rest_seats = rest_seats - 1 WHERE flight_id = :flightId");
+    query.bindValue(":flightId", flightId);
+    if (!query.exec()) {
+        m_db.rollback();
+        qDebug() << "座位更新失败：" << query.lastError().text();
+        return "";
+    }
+
+    if (!m_db.commit()) {
+        qDebug() << "事务提交失败：" << m_db.lastError().text();
+        m_db.rollback();
+        return "";
+    }
+    return orderId;
 }
 
 void DBManager::close() {

@@ -35,6 +35,8 @@ private:
     void handleRegisterRequest(const QByteArray& data);
     void handleChangeTicketRequest(const QByteArray& data);
     void handleCheckUsernameRequest(const QByteArray& data);
+    void handleGetCitiesRequest(const QByteArray& data);
+    void handleGetOccupiedSeatsRequest(const QByteArray& data);
 
     void sendResponse(ResponseStatus status, const QByteArray& data = QByteArray());
 };

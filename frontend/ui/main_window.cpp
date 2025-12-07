@@ -1,751 +1,1185 @@
 #include "main_window.h"
-#include "ui_main_window.h"
 #include "network/tcp_client.h"
 #include "flight_card.h"
 #include "login_page.h"
+#include "seat_selection_dialog.h"
+#include "theme_manager.h"
 #include <QMessageBox>
-#include <QHBoxLayout>
-#include <QVBoxLayout>
 #include <QApplication>
-#include <QScrollArea>
 #include <QFrame>
+#include <QTimer>
+#include <QPropertyAnimation>
 
-// 主题样式表
-const QString DARK_THEME = R"(
-    QWidget { background-color: #2b2b2b; color: #e0e0e0; font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; font-size: 14px; }
-    
-    QLabel#MainTitle {
-        font-size: 26px;
-        font-weight: 600;
-        letter-spacing: 3px;
-        color: #f5f5f5;
-    }
-
-    QWidget#FilterPanel {
-        background-color: #353535;
-        border: 1px solid #444;
-        border-radius: 16px;
-    }
-
-    /* 输入框 */
-    QLineEdit, QDateEdit, QComboBox { 
-        background-color: #3a3a3a; 
-        border: 1px solid #555; 
-        border-radius: 6px; 
-        padding: 8px 12px; 
-        color: #fff; 
-        selection-background-color: #0078d7;
-    }
-    QLineEdit:focus, QDateEdit:focus, QComboBox:focus { border: 1px solid #0078d7; }
-    
-    /* 通用按钮 */
-    QPushButton { 
-        background-color: #3a3a3a; 
-        color: #e0e0e0; 
-        border: 1px solid #555; 
-        border-radius: 6px; 
-        padding: 8px 16px; 
-        font-weight: bold;
-    }
-    QPushButton:hover { background-color: #444; }
-    QPushButton:pressed { background-color: #222; }
-    QPushButton:disabled { background-color: #444; color: #888; border: none; }
-
-    /* 弹窗样式 */
-    QMessageBox { background-color: #2b2b2b; border: 1px solid #444; }
-    QMessageBox QLabel { color: #e0e0e0; }
-    QMessageBox QPushButton {
-        background-color: #0078d7;
-        color: white;
-        border: none;
-    }
-    QMessageBox QPushButton:hover { background-color: #1084e3; }
-
-    /* 表格 */
-    QTableWidget { 
-        background-color: #3a3a3a; 
-        border: 1px solid #555; 
-        gridline-color: #444; 
-        selection-background-color: #0078d7; 
-        selection-color: white;
-        alternate-background-color: #333;
-    }
-    QHeaderView::section { 
-        background-color: #2d2d2d; 
-        color: #e0e0e0; 
-        padding: 8px; 
-        border: none; 
-        border-bottom: 2px solid #0078d7; 
-        font-weight: bold;
-    }
-    QTableCornerButton::section { background-color: #2d2d2d; border: none; }
-
-    /* 滚动条 */
-    QScrollBar:vertical {
-        border: none;
-        background: #2b2b2b;
-        width: 10px;
-        margin: 0px;
-    }
-    QScrollBar::handle:vertical {
-        background: #555;
-        min-height: 20px;
-        border-radius: 5px;
-    }
-    QScrollBar::handle:vertical:hover { background: #666; }
-    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }
-
-    /* 侧边栏特定样式 */
-    QWidget#Sidebar { background-color: #1e1e1e; border-right: 1px solid #333; }
-    QPushButton#SidebarBtn { 
-        background-color: transparent; 
-        text-align: left; 
-        padding: 15px 20px; 
-        border-radius: 0; 
-        border: none;
-        font-size: 15px; 
-        color: #aaa;
-        border-left: 4px solid transparent;
-    }
-    QPushButton#SidebarBtn:hover { background-color: #252525; color: #fff; }
-    QPushButton#SidebarBtn:checked { 
-        background-color: #2d2d2d; 
-        color: #0078d7; 
-        border-left: 4px solid #0078d7;
-        font-weight: bold;
-    }
-
-    /* Cards */
-    QWidget#FlightCard, QWidget#OrderCard {
-        background-color: transparent;
-        border: none;
-        padding: 4px 2px;
-        margin-bottom: 26px;
-    }
-    QWidget#FlightCard QWidget#CardBody,
-    QWidget#OrderCard QWidget#CardBody {
-        background-color: #2f323a;
-        border: 1px solid #3f444f;
-        border-top-left-radius: 18px;
-        border-top-right-radius: 18px;
-        border-bottom: none;
-        padding-top: 6px;
-    }
-    QWidget#FlightCard QWidget#InfoContainer,
-    QWidget#OrderCard QWidget#InfoContainer {
-        background-color: #23252b;
-        border: 1px solid #3f444f;
-        border-bottom-left-radius: 18px;
-        border-bottom-right-radius: 18px;
-        border-top: 1px solid #4a5060;
-    }
-    QWidget#FlightCard:hover QWidget#CardBody,
-    QWidget#OrderCard:hover QWidget#CardBody {
-        border-color: #6a8dff;
-        background-color: #353946;
-    }
-    QWidget#FlightCard:hover QWidget#InfoContainer,
-    QWidget#OrderCard:hover QWidget#InfoContainer {
-        border-color: #6a8dff;
-        border-top-color: #7a9cfe;
-    }
-    FlightCard QLabel, OrderCard QLabel { color: #f3f5f9; }
-    QLabel#FlightId { font-size: 17px; font-weight: 600; color: #f8fbff; }
-    QLabel#TimeLabel { font-size: 28px; font-weight: 600; color: #6aa8ff; }
-    QLabel#CityLabel { font-size: 16px; font-weight: 500; color: #f3f5f9; }
-    QLabel#AirportLabel { font-size: 13px; color: #a6adc8; }
-    QLabel#PriceLabel { font-size: 24px; font-weight: 600; color: #ffb878; }
-    QLabel#DurationLabel { font-size: 13px; color: #95a0be; }
-    QLabel#SeatsLabel { font-size: 13px; color: #cdd3ec; }
-    QLabel#ArrowLabel { color: #717da3; font-weight: bold; }
-    
-    /* 操作按钮样式 (统一结构，不同配色) */
-    QPushButton#BookBtn,
-    QPushButton#ChangeBtn,
-    QPushButton#CancelBtn {
-        border-radius: 18px;
-        padding: 8px 28px;
-        font-weight: 600;
-        min-width: 120px;
-        border-width: 1px;
-    }
-    QPushButton#BookBtn {
-        background-color: rgba(90, 143, 255, 0.15);
-        color: #a5c4ff;
-        border-color: #7fa7ff;
-    }
-    QPushButton#BookBtn:hover {
-        background-color: #4b7bec;
-        color: #0e1833;
-        border-color: #4b7bec;
-    }
-    QPushButton#ChangeBtn {
-        background-color: rgba(61, 214, 190, 0.15);
-        color: #7de5d4;
-        border-color: #46cdb8;
-    }
-    QPushButton#ChangeBtn:hover {
-        background-color: #2dd4bf;
-        color: #082027;
-        border-color: #2dd4bf;
-    }
-    QPushButton#CancelBtn {
-        background-color: rgba(255, 107, 107, 0.15);
-        color: #ff9c9c;
-        border-color: #ff9c9c;
-    }
-    QPushButton#CancelBtn:hover { 
-        background-color: #ff6b6b; 
-        color: #1b0c0c;
-        border-color: #ff6b6b;
-    }
-
-    /* 查询按钮 */
-    QPushButton#queryButton {
-        background-color: #0078d7;
-        color: white;
-        border: none;
-        min-width: 100px;
-        font-size: 15px;
-        padding: 10px 22px;
-        border-radius: 8px;
-    }
-    QPushButton#queryButton:hover { background-color: #1084e3; }
-
-    QWidget#InfoContainer {
-        background-color: #23252b;
-        border-bottom-left-radius: 18px;
-        border-bottom-right-radius: 18px;
-        border-top: 1px solid #4a5060;
-    }
-)";
-
-const QString LIGHT_THEME = R"(
-    QWidget { background-color: #f5f7fa; color: #333; font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; font-size: 14px; }
-    
-    QLabel#MainTitle {
-        font-size: 26px;
-        font-weight: 600;
-        letter-spacing: 2px;
-        color: #1f2c3d;
-    }
-
-    QWidget#FilterPanel {
-        background-color: #ffffff;
-        border: 1px solid #e3e8f0;
-        border-radius: 16px;
-    }
-    
-    /* 输入框 */
-    QLineEdit, QDateEdit, QComboBox { 
-        background-color: #fff; 
-        border: 1px solid #dcdfe6; 
-        border-radius: 6px; 
-        padding: 8px 12px; 
-        color: #333; 
-        selection-background-color: #0078d7;
-    }
-    QLineEdit:focus, QDateEdit:focus, QComboBox:focus { border: 1px solid #0078d7; }
-
-    /* 通用按钮 */
-    QPushButton { 
-        background-color: #fff; 
-        color: #606266; 
-        border: 1px solid #dcdfe6; 
-        border-radius: 6px; 
-        padding: 8px 16px; 
-        font-weight: bold;
-    }
-    QPushButton:hover { background-color: #ecf5ff; color: #409eff; border-color: #c6e2ff; }
-    QPushButton:pressed { background-color: #ecf5ff; color: #3a8ee6; border-color: #3a8ee6; }
-    QPushButton:disabled { background-color: #e0e0e0; color: #aaa; border-color: #ddd; }
-
-    /* 弹窗样式 */
-    QMessageBox { background-color: #fff; }
-    QMessageBox QLabel { color: #333; }
-    QMessageBox QPushButton {
-        background-color: #0078d7;
-        color: white;
-        border: none;
-    }
-    QMessageBox QPushButton:hover { background-color: #1084e3; }
-
-    /* 表格 */
-    QTableWidget { 
-        background-color: #fff; 
-        border: 1px solid #e0e0e0; 
-        gridline-color: #f0f0f0; 
-        selection-background-color: #e6f2ff; 
-        selection-color: #0078d7;
-        alternate-background-color: #fafafa;
-    }
-    QHeaderView::section { 
-        background-color: #fff; 
-        color: #333; 
-        padding: 8px; 
-        border: none; 
-        border-bottom: 2px solid #0078d7; 
-        font-weight: bold;
-    }
-    QTableCornerButton::section { background-color: #fff; border: none; }
-
-    /* 滚动条 */
-    QScrollBar:vertical {
-        border: none;
-        background: #f5f7fa;
-        width: 10px;
-        margin: 0px;
-    }
-    QScrollBar::handle:vertical {
-        background: #ccc;
-        min-height: 20px;
-        border-radius: 5px;
-    }
-    QScrollBar::handle:vertical:hover { background: #bbb; }
-    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }
-
-    /* 侧边栏特定样式 */
-    QWidget#Sidebar { background-color: #ffffff; border-right: 1px solid #e0e0e0; }
-    QPushButton#SidebarBtn { 
-        background-color: transparent; 
-        text-align: left; 
-        padding: 15px 20px; 
-        border-radius: 0; 
-        border: none;
-        color: #666; 
-        font-size: 15px; 
-        border-left: 4px solid transparent;
-    }
-    QPushButton#SidebarBtn:hover { background-color: #f5f7fa; color: #333; }
-    QPushButton#SidebarBtn:checked { 
-        background-color: #e6f2ff; 
-        color: #0078d7; 
-        font-weight: bold; 
-        border-left: 4px solid #0078d7; 
-    }
-
-    /* Cards */
-    QWidget#FlightCard, QWidget#OrderCard {
-        background-color: transparent;
-        border: none;
-        padding: 4px 2px;
-        margin-bottom: 26px;
-    }
-    QWidget#FlightCard QWidget#CardBody,
-    QWidget#OrderCard QWidget#CardBody {
-        background-color: #ffffff;
-        border: 1px solid #dfe5ef;
-        border-top-left-radius: 18px;
-        border-top-right-radius: 18px;
-        border-bottom: none;
-        padding-top: 6px;
-    }
-    QWidget#FlightCard QWidget#InfoContainer,
-    QWidget#OrderCard QWidget#InfoContainer {
-        background-color: #f5f7fb;
-        border: 1px solid #dfe5ef;
-        border-top: 1px solid #edf1f7;
-        border-bottom-left-radius: 18px;
-        border-bottom-right-radius: 18px;
-    }
-    QWidget#FlightCard:hover QWidget#CardBody,
-    QWidget#OrderCard:hover QWidget#CardBody {
-        border-color: #7ab5ff;
-        background-color: #f5f9ff;
-    }
-    QWidget#FlightCard:hover QWidget#InfoContainer,
-    QWidget#OrderCard:hover QWidget#InfoContainer {
-        border-color: #7ab5ff;
-        border-top-color: #b3d6ff;
-    }
-    FlightCard QLabel, OrderCard QLabel { color: #2f3343; }
-    QLabel#FlightId { font-size: 17px; font-weight: 600; color: #1f2c3d; }
-    QLabel#TimeLabel { font-size: 28px; font-weight: 600; color: #2b79ff; }
-    QLabel#CityLabel { font-size: 16px; font-weight: 500; color: #2f3343; }
-    QLabel#AirportLabel { font-size: 13px; color: #7a8095; }
-    QLabel#PriceLabel { font-size: 24px; font-weight: 600; color: #ff7b45; }
-    QLabel#DurationLabel { font-size: 13px; color: #98a1b2; }
-    QLabel#SeatsLabel { font-size: 13px; color: #4b556b; }
-    QLabel#ArrowLabel { color: #a9b2c4; font-weight: bold; }
-
-    /* 操作按钮样式 (统一结构，不同配色) */
-    QPushButton#BookBtn,
-    QPushButton#ChangeBtn,
-    QPushButton#CancelBtn {
-        border-radius: 18px;
-        padding: 8px 28px;
-        font-weight: 600;
-        min-width: 120px;
-        border-width: 1px;
-    }
-    QPushButton#BookBtn {
-        background-color: rgba(71, 137, 255, 0.12);
-        color: #2b63c7;
-        border-color: #4b7bec;
-    }
-    QPushButton#BookBtn:hover {
-        background-color: #4b7bec;
-        color: #ffffff;
-        border-color: #4b7bec;
-    }
-    QPushButton#ChangeBtn {
-        background-color: rgba(45, 212, 191, 0.12);
-        color: #0f766e;
-        border-color: #10b981;
-    }
-    QPushButton#ChangeBtn:hover {
-        background-color: #10b981;
-        color: #ffffff;
-        border-color: #10b981;
-    }
-    QPushButton#CancelBtn {
-        background-color: rgba(239, 68, 68, 0.12);
-        color: #d14343;
-        border-color: #f19999;
-    }
-    QPushButton#CancelBtn:hover { 
-        background-color: #ef4444; 
-        color: #fff;
-        border-color: #ef4444;
-    }
-
-    /* 查询按钮 */
-    QPushButton#queryButton {
-        background-color: #0078d7;
-        color: white;
-        border: none;
-        min-width: 100px;
-        font-size: 15px;
-        padding: 10px 22px;
-        border-radius: 8px;
-    }
-    QPushButton#queryButton:hover { background-color: #1084e3; }
-
-    QWidget#InfoContainer {
-        background-color: #f5f7fb;
-        border-bottom-left-radius: 18px;
-        border-bottom-right-radius: 18px;
-        border-top: 1px solid #edf1f7;
-    }
-)";
-
-MainWindow::MainWindow(QWidget *parent) :
-    QMainWindow(parent),
-    ui(new Ui::MainWindow),
-    m_isDarkTheme(true)
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent),
+      m_isDarkTheme(true),
+      m_pendingFlightSeats(180)
 {
-    ui->setupUi(this);
+    setupUI();
+    applyTheme();
+    setupConnections();
+    
+    // 启动时请求城市列表
+    QTimer::singleShot(500, this, [](){
+        TcpClient::getInstance()->getCities();
+    });
+}
+
+MainWindow::~MainWindow() {}
+
+void MainWindow::setupUI()
+{
     setWindowTitle("扶摇航空票务系统");
-    // setWindowIcon(QIcon(":/icons/app_icon.png")); // 添加图标后取消注释
-
-    // 强化标题样式
-    ui->mainTitleLabel->setObjectName("MainTitle");
-    ui->mainTitleLabel->setText("扶摇 · 航班查询");
-
-    // 优化时间选择器
-    ui->dateEdit->setCalendarPopup(true);
-    ui->dateEdit->setDisplayFormat("yyyy-MM-dd");
-    // 设置只读以防止误触滚动，强制使用日历弹窗
-    if(QLineEdit *le = ui->dateEdit->findChild<QLineEdit*>()) {
-        le->setReadOnly(true);
-    }
-
-    // 将原来的筛选控件包裹在 FilterPanel 中，获得统一底色和圆角
-    QWidget *filterPanel = new QWidget(this);
-    filterPanel->setObjectName("FilterPanel");
-    filterPanel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    QHBoxLayout *filterLayout = new QHBoxLayout(filterPanel);
-    filterLayout->setContentsMargins(20, 15, 20, 15);
-    filterLayout->setSpacing(12);
-
-    auto reparentFilterWidget = [&](QWidget *w) {
-        ui->horizontalLayout->removeWidget(w);
-        w->setParent(filterPanel);
-        filterLayout->addWidget(w);
-    };
-    reparentFilterWidget(ui->departureEdit);
-    reparentFilterWidget(ui->destinationEdit);
-    reparentFilterWidget(ui->dateEdit);
-    reparentFilterWidget(ui->queryButton);
-
-    int filterIndex = ui->verticalLayout->indexOf(ui->horizontalLayout);
-    ui->verticalLayout->insertWidget(filterIndex, filterPanel);
-    delete ui->horizontalLayout;
-    ui->horizontalLayout = nullptr;
-
-    // 隐藏旧的表格和按钮
-    ui->flightTable->setVisible(false);
-    ui->bookButton->setVisible(false);
-
-    // 初始化滚动区域
-    m_flightScrollArea = new QScrollArea();
-    m_flightScrollArea->setWidgetResizable(true);
-    m_flightScrollArea->setFrameShape(QFrame::NoFrame);
-    m_flightScrollArea->setStyleSheet("QScrollArea { background: transparent; }");
-
-    QWidget *scrollContent = new QWidget();
-    scrollContent->setStyleSheet("background: transparent;");
-    m_flightLayout = new QVBoxLayout(scrollContent);
-    m_flightLayout->setContentsMargins(30, 10, 30, 20);
-    m_flightLayout->setSpacing(25);
-    m_flightLayout->addStretch();
-
-    m_flightScrollArea->setWidget(scrollContent);
+    setMinimumSize(1200, 800);
     
-    // 添加到布局 (替换表格位置)
-    ui->verticalLayout->insertWidget(2, m_flightScrollArea);
+    m_centralWidget = new QWidget(this);
+    setCentralWidget(m_centralWidget);
     
-    // 设置主布局
-    QWidget *central = new QWidget(this);
-    QHBoxLayout *mainLayout = new QHBoxLayout(central);
+    QHBoxLayout *mainLayout = new QHBoxLayout(m_centralWidget);
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
     
-    // 侧边栏
-    QWidget *sidebar = new QWidget(central);
-    sidebar->setObjectName("Sidebar");
-    sidebar->setFixedWidth(250);
-    QVBoxLayout *sidebarLayout = new QVBoxLayout(sidebar);
-    sidebarLayout->setContentsMargins(0, 20, 0, 20);
-    sidebarLayout->setSpacing(5);
+    // ========== 侧边栏 ==========
+    setupSidebar();
+    mainLayout->addWidget(m_sidebar);
     
-    auto createBtn = [&](const QString& text, int index) {
-        QPushButton *btn = new QPushButton(text, sidebar);
-        btn->setObjectName("SidebarBtn");
+    // ========== 主内容区 ==========
+    m_stack = new QStackedWidget(m_centralWidget);
+    m_stack->setObjectName("MainStack");
+    
+    // 航班查询页
+    setupFlightPage();
+    m_stack->addWidget(m_flightPage);
+    
+    // 订单页
+    m_ordersPage = new OrdersPage();
+    m_stack->addWidget(m_ordersPage);
+    
+    // 个人中心页
+    m_profilePage = new ProfilePage();
+    m_stack->addWidget(m_profilePage);
+    
+    mainLayout->addWidget(m_stack, 1);
+}
+
+void MainWindow::setupSidebar()
+{
+    m_sidebar = new QWidget(m_centralWidget);
+    m_sidebar->setObjectName("Sidebar");
+    m_sidebar->setFixedWidth(260);
+    
+    QVBoxLayout *sidebarLayout = new QVBoxLayout(m_sidebar);
+    sidebarLayout->setContentsMargins(0, 0, 0, 0);
+    sidebarLayout->setSpacing(0);
+    
+    // Logo区域
+    QWidget *logoArea = new QWidget(m_sidebar);
+    logoArea->setObjectName("LogoArea");
+    logoArea->setFixedHeight(80);
+    QHBoxLayout *logoLayout = new QHBoxLayout(logoArea);
+    logoLayout->setContentsMargins(25, 0, 25, 0);
+    
+    QLabel *logoIcon = new QLabel("✈", logoArea);
+    logoIcon->setObjectName("SidebarLogo");
+    QLabel *logoText = new QLabel("扶摇航空", logoArea);
+    logoText->setObjectName("SidebarLogoText");
+    
+    logoLayout->addWidget(logoIcon);
+    logoLayout->addWidget(logoText);
+    logoLayout->addStretch();
+    sidebarLayout->addWidget(logoArea);
+    
+    // 分隔线
+    QFrame *line = new QFrame(m_sidebar);
+    line->setObjectName("SidebarLine");
+    line->setFrameShape(QFrame::HLine);
+    line->setFixedHeight(1);
+    sidebarLayout->addWidget(line);
+    
+    sidebarLayout->addSpacing(15);
+    
+    // 导航按钮
+    auto createNavBtn = [this](const QString& icon, const QString& text) {
+        QPushButton *btn = new QPushButton(m_sidebar);
+        btn->setObjectName("NavBtn");
+        btn->setText(QString("  %1   %2").arg(icon, text));
         btn->setCheckable(true);
         btn->setAutoExclusive(true);
-        connect(btn, &QPushButton::clicked, this, [this, index](){ navigateTo(index); });
-        sidebarLayout->addWidget(btn);
-        if(index == 0) btn->setChecked(true);
+        btn->setCursor(Qt::PointingHandCursor);
+        btn->setMinimumHeight(50);
         return btn;
     };
     
-    createBtn("✈  航班查询", 0);
-    createBtn("📋  我的订单", 1);
-    createBtn("👤  个人中心", 2);
+    m_flightBtn = createNavBtn("🔍", "航班查询");
+    m_flightBtn->setChecked(true);
+    sidebarLayout->addWidget(m_flightBtn);
+    
+    m_ordersBtn = createNavBtn("📋", "我的订单");
+    sidebarLayout->addWidget(m_ordersBtn);
+    
+    m_profileBtn = createNavBtn("👤", "个人中心");
+    sidebarLayout->addWidget(m_profileBtn);
     
     sidebarLayout->addStretch();
     
-    QPushButton *themeBtn = new QPushButton("🌗  切换主题", sidebar);
-    themeBtn->setObjectName("SidebarBtn");
-    connect(themeBtn, &QPushButton::clicked, this, &MainWindow::switchTheme);
-    sidebarLayout->addWidget(themeBtn);
+    // 底部按钮
+    m_themeBtn = new QPushButton(m_sidebar);
+    m_themeBtn->setObjectName("NavBtn");
+    m_themeBtn->setText("  🌗   切换主题");
+    m_themeBtn->setCursor(Qt::PointingHandCursor);
+    m_themeBtn->setMinimumHeight(50);
+    sidebarLayout->addWidget(m_themeBtn);
+    
+    m_logoutBtn = new QPushButton(m_sidebar);
+    m_logoutBtn->setObjectName("LogoutBtn");
+    m_logoutBtn->setText("  🚪   退出登录");
+    m_logoutBtn->setCursor(Qt::PointingHandCursor);
+    m_logoutBtn->setMinimumHeight(50);
+    sidebarLayout->addWidget(m_logoutBtn);
+    
+    sidebarLayout->addSpacing(20);
+}
 
-    QPushButton *logoutBtn = new QPushButton("🚪  退出登录", sidebar);
-    logoutBtn->setObjectName("SidebarBtn");
-    connect(logoutBtn, &QPushButton::clicked, this, [this](){
+void MainWindow::setupFlightPage()
+{
+    m_flightPage = new QWidget();
+    m_flightPage->setObjectName("FlightPage");
+    
+    QVBoxLayout *pageLayout = new QVBoxLayout(m_flightPage);
+    pageLayout->setContentsMargins(40, 30, 40, 30);
+    pageLayout->setSpacing(25);
+    
+    // ========== 顶部标题区 ==========
+    QHBoxLayout *headerLayout = new QHBoxLayout();
+    m_mainTitleLabel = new QLabel("航班查询");
+    m_mainTitleLabel->setObjectName("PageTitle");
+    headerLayout->addWidget(m_mainTitleLabel);
+    headerLayout->addStretch();
+    
+    // 结果计数
+    m_resultCountLabel = new QLabel("");
+    m_resultCountLabel->setObjectName("ResultCount");
+    headerLayout->addWidget(m_resultCountLabel);
+    
+    pageLayout->addLayout(headerLayout);
+    
+    // ========== 搜索面板 ==========
+    QWidget *searchPanel = new QWidget(m_flightPage);
+    searchPanel->setObjectName("SearchPanel");
+    searchPanel->setGraphicsEffect(createShadow(QColor(0, 0, 0, 20), 20, 5));
+    
+    QVBoxLayout *searchLayout = new QVBoxLayout(searchPanel);
+    searchLayout->setContentsMargins(30, 25, 30, 25);
+    searchLayout->setSpacing(20);
+    
+    // 搜索输入行
+    QHBoxLayout *inputLayout = new QHBoxLayout();
+    inputLayout->setSpacing(15);
+    
+    // 出发地
+    QVBoxLayout *depLayout = new QVBoxLayout();
+    QLabel *depLabel = new QLabel("出发城市");
+    depLabel->setObjectName("FieldLabel");
+    m_departureCombo = new QComboBox();
+    m_departureCombo->setObjectName("CityCombo");
+    m_departureCombo->setEditable(true);
+    m_departureCombo->setMinimumHeight(50);
+    m_departureCombo->setMinimumWidth(200);
+    m_departureCombo->lineEdit()->setPlaceholderText("请选择或输入城市");
+    m_departureCombo->setInsertPolicy(QComboBox::NoInsert);
+    depLayout->addWidget(depLabel);
+    depLayout->addWidget(m_departureCombo);
+    inputLayout->addLayout(depLayout);
+    
+    // 交换按钮
+    m_swapBtn = new QPushButton("⇄");
+    m_swapBtn->setObjectName("SwapBtn");
+    m_swapBtn->setFixedSize(45, 45);
+    m_swapBtn->setCursor(Qt::PointingHandCursor);
+    m_swapBtn->setToolTip("交换出发地和目的地");
+    inputLayout->addWidget(m_swapBtn, 0, Qt::AlignBottom);
+    
+    // 目的地
+    QVBoxLayout *destLayout = new QVBoxLayout();
+    QLabel *destLabel = new QLabel("到达城市");
+    destLabel->setObjectName("FieldLabel");
+    m_destinationCombo = new QComboBox();
+    m_destinationCombo->setObjectName("CityCombo");
+    m_destinationCombo->setEditable(true);
+    m_destinationCombo->setMinimumHeight(50);
+    m_destinationCombo->setMinimumWidth(200);
+    m_destinationCombo->lineEdit()->setPlaceholderText("请选择或输入城市");
+    m_destinationCombo->setInsertPolicy(QComboBox::NoInsert);
+    destLayout->addWidget(destLabel);
+    destLayout->addWidget(m_destinationCombo);
+    inputLayout->addLayout(destLayout);
+    
+    inputLayout->addSpacing(20);
+    
+    // 日期
+    QVBoxLayout *dateLayout = new QVBoxLayout();
+    QLabel *dateLabel = new QLabel("出发日期");
+    dateLabel->setObjectName("FieldLabel");
+    m_dateEdit = new QDateEdit();
+    m_dateEdit->setObjectName("DateEdit");
+    m_dateEdit->setCalendarPopup(true);
+    m_dateEdit->setDate(QDate::currentDate());
+    m_dateEdit->setMinimumDate(QDate::currentDate());
+    m_dateEdit->setDisplayFormat("yyyy年MM月dd日");
+    m_dateEdit->setMinimumHeight(50);
+    m_dateEdit->setMinimumWidth(180);
+    dateLayout->addWidget(dateLabel);
+    dateLayout->addWidget(m_dateEdit);
+    inputLayout->addLayout(dateLayout);
+    
+    inputLayout->addStretch();
+    
+    // 搜索按钮
+    m_searchBtn = new QPushButton("搜索航班");
+    m_searchBtn->setObjectName("SearchBtn");
+    m_searchBtn->setMinimumSize(140, 50);
+    m_searchBtn->setCursor(Qt::PointingHandCursor);
+    inputLayout->addWidget(m_searchBtn, 0, Qt::AlignBottom);
+    
+    searchLayout->addLayout(inputLayout);
+    
+    // 快捷日期选择
+    QHBoxLayout *quickDateLayout = new QHBoxLayout();
+    quickDateLayout->setSpacing(10);
+    
+    QLabel *quickLabel = new QLabel("快捷选择：");
+    quickLabel->setObjectName("QuickLabel");
+    quickDateLayout->addWidget(quickLabel);
+    
+    auto createQuickBtn = [this](const QString& text, int daysOffset) {
+        QPushButton *btn = new QPushButton(text);
+        btn->setObjectName("QuickDateBtn");
+        btn->setCursor(Qt::PointingHandCursor);
+        connect(btn, &QPushButton::clicked, [this, daysOffset](){
+            m_dateEdit->setDate(QDate::currentDate().addDays(daysOffset));
+        });
+        return btn;
+    };
+    
+    quickDateLayout->addWidget(createQuickBtn("今天", 0));
+    quickDateLayout->addWidget(createQuickBtn("明天", 1));
+    quickDateLayout->addWidget(createQuickBtn("后天", 2));
+    quickDateLayout->addWidget(createQuickBtn("本周末", (6 - QDate::currentDate().dayOfWeek() + 7) % 7 + 1));
+    quickDateLayout->addStretch();
+    
+    searchLayout->addLayout(quickDateLayout);
+    
+    pageLayout->addWidget(searchPanel);
+    
+    // ========== 结果列表 ==========
+    m_flightScrollArea = new QScrollArea(m_flightPage);
+    m_flightScrollArea->setObjectName("FlightScrollArea");
+    m_flightScrollArea->setWidgetResizable(true);
+    m_flightScrollArea->setFrameShape(QFrame::NoFrame);
+    m_flightScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    
+    QWidget *scrollContent = new QWidget();
+    scrollContent->setObjectName("ScrollContent");
+    m_flightLayout = new QVBoxLayout(scrollContent);
+    m_flightLayout->setContentsMargins(0, 10, 10, 20);
+    m_flightLayout->setSpacing(20);
+    
+    // 初始提示
+    QLabel *hintLabel = new QLabel("请输入出发地和目的地，搜索航班");
+    hintLabel->setObjectName("HintLabel");
+    hintLabel->setAlignment(Qt::AlignCenter);
+    m_flightLayout->addWidget(hintLabel);
+    m_flightLayout->addStretch();
+    
+    m_flightScrollArea->setWidget(scrollContent);
+    pageLayout->addWidget(m_flightScrollArea, 1);
+}
+
+void MainWindow::setupConnections()
+{
+    // 导航按钮
+    connect(m_flightBtn, &QPushButton::clicked, [this](){ navigateTo(0); });
+    connect(m_ordersBtn, &QPushButton::clicked, [this](){ navigateTo(1); });
+    connect(m_profileBtn, &QPushButton::clicked, [this](){ navigateTo(2); });
+    connect(m_themeBtn, &QPushButton::clicked, this, &MainWindow::switchTheme);
+    
+    connect(m_logoutBtn, &QPushButton::clicked, [this](){
         this->close();
         LoginPage *login = new LoginPage();
         login->show();
     });
-    sidebarLayout->addWidget(logoutBtn);
     
-    mainLayout->addWidget(sidebar);
-    
-    // 堆叠窗口
-    m_stack = new QStackedWidget(central);
-    
-    // 页面 0: 航班查询 (重新父级化现有UI)
-    QWidget *flightPage = ui->centralwidget;
-    // 我们需要先将其从MainWindow中移除，但setupUi已经设置了它。
-    // 我们可以直接将其添加到堆栈中，QStackedWidget会重新父级化它。
-    // 但是等等，ui->centralwidget已经被设置为'this'的中心部件。
-    // 我们正在设置'central'为新的中心部件。
-    // 所以我们可以直接获取ui->centralwidget。
-    m_stack->addWidget(flightPage);
-    
-    // 页面 1: 订单
-    m_ordersPage = new OrdersPage();
-    m_stack->addWidget(m_ordersPage);
-    
-    // 页面 2: 个人中心
-    m_profilePage = new ProfilePage();
-    m_stack->addWidget(m_profilePage);
-    
-    mainLayout->addWidget(m_stack);
-    
-    setCentralWidget(central);
-    
-    applyTheme();
-    
-    // 连接信号槽
-    connect(ui->queryButton, &QPushButton::clicked, this, [this](){
-        QString dep = ui->departureEdit->text();
-        QString dest = ui->destinationEdit->text();
-        QDate date = ui->dateEdit->date();
-        TcpClient::getInstance()->queryFlights(dep, dest, date);
+    // 搜索功能
+    connect(m_searchBtn, &QPushButton::clicked, this, &MainWindow::performSearch);
+    connect(m_swapBtn, &QPushButton::clicked, [this](){
+        QString temp = m_departureCombo->currentText();
+        m_departureCombo->setCurrentText(m_destinationCombo->currentText());
+        m_destinationCombo->setCurrentText(temp);
     });
     
+    // 城市数据
+    connect(TcpClient::getInstance(), &TcpClient::citiesResult, this, &MainWindow::onCitiesReceived);
+    
+    // 航班查询结果
     connect(TcpClient::getInstance(), &TcpClient::flightQueryResults, this, [this](const QList<Flight>& flights){
-        // 清空现有卡片
+        // 清空现有
         QLayoutItem *item;
         while ((item = m_flightLayout->takeAt(0)) != nullptr) {
-            if (item->widget()) {
-                delete item->widget();
-            }
+            if (item->widget()) delete item->widget();
             delete item;
         }
         
-        // 添加新卡片
-        for(const Flight& f : flights) {
-            FlightCard *card = new FlightCard(f);
-            connect(card, &FlightCard::bookRequested, this, [this](const Flight& flight){
-                QString flightId = flight.flight_id;
-                if (m_username.isEmpty()) m_username = "test"; 
-                
-                QString info = QString("航班号: %1\n出发: %2 %3\n到达: %4 %5\n时间: %6 - %7\n价格: ¥%8")
-                               .arg(flight.flight_id)
-                               .arg(flight.departure).arg(flight.departure_airport)
-                               .arg(flight.destination).arg(flight.arrival_airport)
-                               .arg(flight.depart_time.toString("yyyy-MM-dd HH:mm"))
-                               .arg(flight.arrive_time.toString("yyyy-MM-dd HH:mm"))
-                               .arg(flight.price);
-
-                if (!m_changingOrderId.isEmpty()) {
-                    QMessageBox msgBox(this);
-                    msgBox.setWindowTitle("确认改签");
-                    msgBox.setText("确定要改签到以下航班吗?\n\n" + info);
-                    msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-                    msgBox.setButtonText(QMessageBox::Yes, "是");
-                    msgBox.setButtonText(QMessageBox::No, "否");
-                    if (msgBox.exec() == QMessageBox::Yes) {
-                        TcpClient::getInstance()->changeTicket(m_changingOrderId, flightId);
-                        m_changingOrderId.clear(); 
+        if (flights.isEmpty()) {
+            QLabel *emptyLabel = new QLabel("未找到符合条件的航班");
+            emptyLabel->setObjectName("EmptyLabel");
+            emptyLabel->setAlignment(Qt::AlignCenter);
+            m_flightLayout->addWidget(emptyLabel);
+            m_resultCountLabel->setText("");
+        } else {
+            m_resultCountLabel->setText(QString("找到 %1 个航班").arg(flights.size()));
+            
+            for (const Flight& f : flights) {
+                FlightCard *card = new FlightCard(f);
+                connect(card, &FlightCard::bookRequested, this, [this](const Flight& flight){
+                    if (!m_changingOrderId.isEmpty()) {
+                        // 改签确认
+                        QMessageBox msgBox(this);
+                        msgBox.setWindowTitle("确认改签");
+                        msgBox.setText(QString("确定要改签到航班 %1 吗？\n%2 → %3")
+                                       .arg(flight.flight_id, flight.departure, flight.destination));
+                        msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+                        msgBox.setButtonText(QMessageBox::Yes, "确定");
+                        msgBox.setButtonText(QMessageBox::No, "取消");
+                        if (msgBox.exec() == QMessageBox::Yes) {
+                            TcpClient::getInstance()->changeTicket(m_changingOrderId, flight.flight_id);
+                            m_changingOrderId.clear();
+                        }
+                    } else {
+                        // 选座预订
+                        m_pendingFlightId = flight.flight_id;
+                        m_pendingFlightSeats = flight.rest_seats;
+                        TcpClient::getInstance()->getOccupiedSeats(flight.flight_id);
                     }
-                } else {
-                    QMessageBox msgBox(this);
-                    msgBox.setWindowTitle("确认预订");
-                    msgBox.setText("确定要预订以下航班吗?\n\n" + info);
-                    msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-                    msgBox.setButtonText(QMessageBox::Yes, "是");
-                    msgBox.setButtonText(QMessageBox::No, "否");
-                    if (msgBox.exec() == QMessageBox::Yes) {
-                        TcpClient::getInstance()->bookTicket(m_username, flightId);
-                    }
-                }
-            });
-            m_flightLayout->addWidget(card);
+                });
+                m_flightLayout->addWidget(card);
+            }
         }
-        m_flightLayout->addStretch(); // 底部弹簧
+        m_flightLayout->addStretch();
     });
     
-
+    // 已占座位
+    connect(TcpClient::getInstance(), &TcpClient::occupiedSeatsResult, this, &MainWindow::onOccupiedSeatsReceived);
     
+    // 预订结果
     connect(TcpClient::getInstance(), &TcpClient::bookTicketResult, this, [this](bool success, const QString& msg){
         QMessageBox msgBox(this);
         msgBox.setStandardButtons(QMessageBox::Ok);
         msgBox.setButtonText(QMessageBox::Ok, "确定");
         if (success) {
-            msgBox.setWindowTitle("预订");
-            msgBox.setText("预订成功！订单号：" + msg);
+            msgBox.setWindowTitle("预订成功");
+            msgBox.setText("🎉 恭喜！预订成功\n订单号：" + msg);
             msgBox.setIcon(QMessageBox::Information);
         } else {
-            msgBox.setWindowTitle("预订");
-            msgBox.setText("预订失败。");
+            msgBox.setWindowTitle("预订失败");
+            msgBox.setText("预订失败，请重试");
             msgBox.setIcon(QMessageBox::Warning);
         }
         msgBox.exec();
     });
     
+    // 订单相关
     connect(m_ordersPage, &OrdersPage::cancelOrder, TcpClient::getInstance(), &TcpClient::cancelTicket);
-
     connect(TcpClient::getInstance(), &TcpClient::cancelTicketResult, this, [this](bool success){
         QMessageBox msgBox(this);
         msgBox.setStandardButtons(QMessageBox::Ok);
         msgBox.setButtonText(QMessageBox::Ok, "确定");
         if (success) {
-            msgBox.setWindowTitle("取消订单");
-            msgBox.setText("订单取消成功！");
+            msgBox.setWindowTitle("取消成功");
+            msgBox.setText("订单已取消");
             msgBox.setIcon(QMessageBox::Information);
-            TcpClient::getInstance()->queryOrders(m_username); // 刷新列表
+            TcpClient::getInstance()->queryOrders(m_username);
         } else {
-            msgBox.setWindowTitle("取消订单");
-            msgBox.setText("订单取消失败。");
-            msgBox.setIcon(QMessageBox::Warning);
-        }
-        msgBox.exec();
-    });
-
-    connect(TcpClient::getInstance(), &TcpClient::myOrdersResults, this, [this](const QList<Order>& orders){
-        m_ordersPage->setOrders(orders);
-    });
-    
-    connect(m_profilePage, &ProfilePage::updateUserInfo, TcpClient::getInstance(), &TcpClient::updateUserInfo);
-
-    connect(TcpClient::getInstance(), &TcpClient::updateUserInfoResult, this, [this](bool success){
-        QMessageBox msgBox(this);
-        msgBox.setStandardButtons(QMessageBox::Ok);
-        msgBox.setButtonText(QMessageBox::Ok, "确定");
-        if (success) {
-            msgBox.setWindowTitle("个人信息");
-            msgBox.setText("更新成功！");
-            msgBox.setIcon(QMessageBox::Information);
-            TcpClient::getInstance()->getUserInfo(m_username); // 刷新
-        } else {
-            msgBox.setWindowTitle("个人信息");
-            msgBox.setText("更新失败。");
+            msgBox.setWindowTitle("取消失败");
+            msgBox.setText("取消失败，请重试");
             msgBox.setIcon(QMessageBox::Warning);
         }
         msgBox.exec();
     });
     
-    connect(TcpClient::getInstance(), &TcpClient::userInfoResult, this, [this](const User& user){
-        m_profilePage->setUserInfo(user);
-    });
+    connect(TcpClient::getInstance(), &TcpClient::myOrdersResults, m_ordersPage, &OrdersPage::setOrders);
     
     connect(m_ordersPage, &OrdersPage::changeOrder, this, [this](const QString& orderId){
         m_changingOrderId = orderId;
-        navigateTo(0); // Go to flight query
-        QMessageBox msgBox(this);
-        msgBox.setWindowTitle("改签");
-        msgBox.setText("请查询并选择您想要改签的新航班。");
-        msgBox.setStandardButtons(QMessageBox::Ok);
-        msgBox.setButtonText(QMessageBox::Ok, "确定");
-        msgBox.setIcon(QMessageBox::Information);
-        msgBox.exec();
+        navigateTo(0);
+        QMessageBox::information(this, "改签", "请搜索并选择要改签的新航班");
     });
-
+    
     connect(TcpClient::getInstance(), &TcpClient::changeTicketResult, this, [this](bool success){
         QMessageBox msgBox(this);
         msgBox.setStandardButtons(QMessageBox::Ok);
         msgBox.setButtonText(QMessageBox::Ok, "确定");
         if (success) {
-            msgBox.setWindowTitle("改签");
-            msgBox.setText("改签成功！");
+            msgBox.setWindowTitle("改签成功");
+            msgBox.setText("航班改签成功！");
             msgBox.setIcon(QMessageBox::Information);
-            navigateTo(1); // Go back to orders
+            navigateTo(1);
         } else {
-            msgBox.setWindowTitle("改签");
-            msgBox.setText("改签失败。");
+            msgBox.setWindowTitle("改签失败");
+            msgBox.setText("改签失败，请重试");
             msgBox.setIcon(QMessageBox::Warning);
         }
         msgBox.exec();
     });
+    
+    // 个人信息
+    connect(m_profilePage, &ProfilePage::updateUserInfo, TcpClient::getInstance(), &TcpClient::updateUserInfo);
+    connect(TcpClient::getInstance(), &TcpClient::updateUserInfoResult, this, [this](bool success){
+        QMessageBox msgBox(this);
+        msgBox.setStandardButtons(QMessageBox::Ok);
+        msgBox.setButtonText(QMessageBox::Ok, "确定");
+        if (success) {
+            msgBox.setWindowTitle("更新成功");
+            msgBox.setText("个人信息已更新");
+            msgBox.setIcon(QMessageBox::Information);
+            TcpClient::getInstance()->getUserInfo(m_username);
+        } else {
+            msgBox.setWindowTitle("更新失败");
+            msgBox.setText("更新失败，请重试");
+            msgBox.setIcon(QMessageBox::Warning);
+        }
+        msgBox.exec();
+    });
+    
+    connect(TcpClient::getInstance(), &TcpClient::userInfoResult, m_profilePage, &ProfilePage::setUserInfo);
 }
 
-MainWindow::~MainWindow()
+void MainWindow::performSearch()
 {
-    delete ui;
+    QString dep = m_departureCombo->currentText().trimmed();
+    QString dest = m_destinationCombo->currentText().trimmed();
+    QDate date = m_dateEdit->date();
+    
+    TcpClient::getInstance()->queryFlights(dep, dest, date);
 }
 
-void MainWindow::setUsername(const QString& username) {
+void MainWindow::onCitiesReceived(const QStringList& cities)
+{
+    m_cities = cities;
+    m_departureCombo->clear();
+    m_destinationCombo->clear();
+    
+    m_departureCombo->addItem("");  // 空选项
+    m_destinationCombo->addItem("");
+    
+    for (const QString& city : cities) {
+        m_departureCombo->addItem(city);
+        m_destinationCombo->addItem(city);
+    }
+    
+    // 设置自动补全
+    QCompleter *depCompleter = new QCompleter(cities, m_departureCombo);
+    depCompleter->setCaseSensitivity(Qt::CaseInsensitive);
+    depCompleter->setFilterMode(Qt::MatchContains);
+    m_departureCombo->setCompleter(depCompleter);
+    
+    QCompleter *destCompleter = new QCompleter(cities, m_destinationCombo);
+    destCompleter->setCaseSensitivity(Qt::CaseInsensitive);
+    destCompleter->setFilterMode(Qt::MatchContains);
+    m_destinationCombo->setCompleter(destCompleter);
+}
+
+void MainWindow::onOccupiedSeatsReceived(const QStringList& seats)
+{
+    if (m_pendingFlightId.isEmpty()) return;
+    
+    int totalSeats = seats.size() + m_pendingFlightSeats;
+    if (totalSeats <= 120) totalSeats = 120;
+    else if (totalSeats <= 150) totalSeats = 150;
+    else if (totalSeats <= 180) totalSeats = 180;
+    else if (totalSeats <= 200) totalSeats = 200;
+    else if (totalSeats <= 220) totalSeats = 220;
+    else totalSeats = 250;
+    
+    SeatSelectionDialog dialog(m_pendingFlightId, seats, totalSeats, this);
+    if (dialog.exec() == QDialog::Accepted) {
+        QString selectedSeat = dialog.selectedSeat();
+        TcpClient::getInstance()->bookTicket(m_username, m_pendingFlightId, selectedSeat);
+    }
+    m_pendingFlightId.clear();
+}
+
+void MainWindow::setUsername(const QString& username)
+{
     m_username = username;
 }
 
-void MainWindow::navigateTo(int index) {
+void MainWindow::navigateTo(int index)
+{
     m_stack->setCurrentIndex(index);
-    if (index == 1) { // Orders
+    
+    if (index == 1) {
         TcpClient::getInstance()->queryOrders(m_username);
-    } else if (index == 2) { // Profile
+    } else if (index == 2) {
         TcpClient::getInstance()->getUserInfo(m_username);
     }
 }
 
-void MainWindow::switchTheme() {
+void MainWindow::switchTheme()
+{
     m_isDarkTheme = !m_isDarkTheme;
     applyTheme();
+    if (m_profilePage) {
+        m_profilePage->updateTheme(m_isDarkTheme);
+    }
 }
 
-void MainWindow::applyTheme() {
-    qApp->setStyleSheet(m_isDarkTheme ? DARK_THEME : LIGHT_THEME);
+void MainWindow::applyTheme()
+{
+    QString theme = m_isDarkTheme ? R"(
+        /* ========== 全局 ========== */
+        * { font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; }
+        
+        QMainWindow, QWidget#FlightPage, QWidget#ScrollContent {
+            background-color: #0f172a;
+        }
+        
+        /* ========== 侧边栏 ========== */
+        QWidget#Sidebar {
+            background-color: #1e293b;
+            border-right: 1px solid #334155;
+        }
+        
+        QWidget#LogoArea {
+            background-color: transparent;
+        }
+        
+        QLabel#SidebarLogo {
+            font-size: 32px;
+            color: #60a5fa;
+        }
+        
+        QLabel#SidebarLogoText {
+            font-size: 20px;
+            font-weight: bold;
+            color: #f1f5f9;
+        }
+        
+        QFrame#SidebarLine {
+            background-color: #334155;
+        }
+        
+        QPushButton#NavBtn {
+            background-color: transparent;
+            border: none;
+            border-radius: 8px;
+            color: #94a3b8;
+            font-size: 15px;
+            text-align: left;
+            padding: 12px 20px;
+            margin: 2px 12px;
+        }
+        
+        QPushButton#NavBtn:hover {
+            background-color: #334155;
+            color: #f1f5f9;
+        }
+        
+        QPushButton#NavBtn:checked {
+            background-color: #3b82f6;
+            color: white;
+            font-weight: bold;
+        }
+        
+        QPushButton#LogoutBtn {
+            background-color: transparent;
+            border: none;
+            border-radius: 8px;
+            color: #f87171;
+            font-size: 15px;
+            text-align: left;
+            padding: 12px 20px;
+            margin: 2px 12px;
+        }
+        
+        QPushButton#LogoutBtn:hover {
+            background-color: rgba(248, 113, 113, 0.15);
+        }
+        
+        /* ========== 页面标题 ========== */
+        QLabel#PageTitle {
+            font-size: 28px;
+            font-weight: bold;
+            color: #f1f5f9;
+        }
+        
+        QLabel#ResultCount {
+            font-size: 14px;
+            color: #64748b;
+        }
+        
+        /* ========== 搜索面板 ========== */
+        QWidget#SearchPanel {
+            background-color: #1e293b;
+            border-radius: 16px;
+            border: 1px solid #334155;
+        }
+        
+        QLabel#FieldLabel {
+            font-size: 13px;
+            font-weight: 600;
+            color: #94a3b8;
+            margin-bottom: 6px;
+        }
+        
+        QComboBox#CityCombo {
+            background-color: #0f172a;
+            border: 2px solid #334155;
+            border-radius: 10px;
+            padding: 10px 15px;
+            font-size: 15px;
+            color: #f1f5f9;
+        }
+        
+        QComboBox#CityCombo:focus {
+            border-color: #3b82f6;
+        }
+        
+        QComboBox#CityCombo::drop-down {
+            border: none;
+            width: 30px;
+        }
+        
+        QComboBox#CityCombo::down-arrow {
+            image: none;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 6px solid #64748b;
+            margin-right: 10px;
+        }
+        
+        QComboBox#CityCombo QAbstractItemView {
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: #f1f5f9;
+            selection-background-color: #3b82f6;
+            outline: none;
+        }
+        
+        QDateEdit#DateEdit {
+            background-color: #0f172a;
+            border: 2px solid #334155;
+            border-radius: 10px;
+            padding: 10px 15px;
+            font-size: 15px;
+            color: #f1f5f9;
+        }
+        
+        QDateEdit#DateEdit:focus {
+            border-color: #3b82f6;
+        }
+        
+        QDateEdit#DateEdit::drop-down {
+            border: none;
+            width: 30px;
+        }
+        
+        QPushButton#SwapBtn {
+            background-color: #334155;
+            border: none;
+            border-radius: 22px;
+            color: #94a3b8;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        QPushButton#SwapBtn:hover {
+            background-color: #475569;
+            color: #f1f5f9;
+        }
+        
+        QPushButton#SearchBtn {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 #3b82f6, stop:1 #8b5cf6);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 15px;
+            font-weight: bold;
+        }
+        
+        QPushButton#SearchBtn:hover {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 #2563eb, stop:1 #7c3aed);
+        }
+        
+        QLabel#QuickLabel {
+            font-size: 13px;
+            color: #64748b;
+        }
+        
+        QPushButton#QuickDateBtn {
+            background-color: #334155;
+            border: none;
+            border-radius: 6px;
+            color: #94a3b8;
+            font-size: 12px;
+            padding: 6px 12px;
+        }
+        
+        QPushButton#QuickDateBtn:hover {
+            background-color: #475569;
+            color: #f1f5f9;
+        }
+        
+        /* ========== 结果区域 ========== */
+        QScrollArea#FlightScrollArea {
+            background-color: transparent;
+            border: none;
+        }
+        
+        QLabel#HintLabel, QLabel#EmptyLabel {
+            font-size: 16px;
+            color: #64748b;
+            padding: 60px;
+        }
+        
+        /* ========== 滚动条 ========== */
+        QScrollBar:vertical {
+            background: transparent;
+            width: 8px;
+            margin: 0;
+        }
+        
+        QScrollBar::handle:vertical {
+            background: #475569;
+            border-radius: 4px;
+            min-height: 30px;
+        }
+        
+        QScrollBar::handle:vertical:hover {
+            background: #64748b;
+        }
+        
+        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+            height: 0;
+        }
+        
+        /* ========== 卡片 ========== */
+        QWidget#FlightCard, QWidget#OrderCard {
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 16px;
+        }
+        
+        QWidget#FlightCard:hover, QWidget#OrderCard:hover {
+            border-color: #3b82f6;
+            background-color: #243044;
+        }
+        
+        QLabel#FlightId { font-size: 16px; font-weight: 600; color: #f1f5f9; }
+        QLabel#TimeLabel { font-size: 26px; font-weight: 700; color: #60a5fa; }
+        QLabel#CityLabel { font-size: 15px; font-weight: 500; color: #f1f5f9; }
+        QLabel#AirportLabel { font-size: 12px; color: #64748b; }
+        QLabel#PriceLabel { font-size: 22px; font-weight: 700; color: #fb923c; }
+        QLabel#DurationLabel { font-size: 12px; color: #64748b; }
+        QLabel#SeatsLabel { font-size: 12px; color: #94a3b8; }
+        QLabel#ArrowLabel { font-size: 20px; color: #475569; }
+        
+        QPushButton#BookBtn {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #3b82f6, stop:1 #8b5cf6);
+            border: none;
+            border-radius: 20px;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 10px 25px;
+        }
+        
+        QPushButton#BookBtn:hover {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2563eb, stop:1 #7c3aed);
+        }
+        
+        QPushButton#ChangeBtn {
+            background-color: rgba(34, 197, 94, 0.15);
+            border: 1px solid #22c55e;
+            border-radius: 20px;
+            color: #4ade80;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 10px 25px;
+        }
+        
+        QPushButton#ChangeBtn:hover {
+            background-color: #22c55e;
+            color: white;
+        }
+        
+        QPushButton#CancelBtn {
+            background-color: rgba(239, 68, 68, 0.15);
+            border: 1px solid #ef4444;
+            border-radius: 20px;
+            color: #f87171;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 10px 25px;
+        }
+        
+        QPushButton#CancelBtn:hover {
+            background-color: #ef4444;
+            color: white;
+        }
+        
+        /* ========== 对话框 ========== */
+        QMessageBox {
+            background-color: #1e293b;
+        }
+        
+        QMessageBox QLabel {
+            color: #f1f5f9;
+        }
+        
+        QMessageBox QPushButton {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 20px;
+            font-weight: bold;
+        }
+        
+        QMessageBox QPushButton:hover {
+            background-color: #2563eb;
+        }
+    )" : R"(
+        /* ========== 全局 ========== */
+        * { font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; }
+        
+        QMainWindow, QWidget#FlightPage, QWidget#ScrollContent {
+            background-color: #f8fafc;
+        }
+        
+        /* ========== 侧边栏 ========== */
+        QWidget#Sidebar {
+            background-color: #ffffff;
+            border-right: 1px solid #e2e8f0;
+        }
+        
+        QWidget#LogoArea {
+            background-color: transparent;
+        }
+        
+        QLabel#SidebarLogo {
+            font-size: 32px;
+            color: #3b82f6;
+        }
+        
+        QLabel#SidebarLogoText {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1e293b;
+        }
+        
+        QFrame#SidebarLine {
+            background-color: #e2e8f0;
+        }
+        
+        QPushButton#NavBtn {
+            background-color: transparent;
+            border: none;
+            border-radius: 8px;
+            color: #64748b;
+            font-size: 15px;
+            text-align: left;
+            padding: 12px 20px;
+            margin: 2px 12px;
+        }
+        
+        QPushButton#NavBtn:hover {
+            background-color: #f1f5f9;
+            color: #1e293b;
+        }
+        
+        QPushButton#NavBtn:checked {
+            background-color: #3b82f6;
+            color: white;
+            font-weight: bold;
+        }
+        
+        QPushButton#LogoutBtn {
+            background-color: transparent;
+            border: none;
+            border-radius: 8px;
+            color: #ef4444;
+            font-size: 15px;
+            text-align: left;
+            padding: 12px 20px;
+            margin: 2px 12px;
+        }
+        
+        QPushButton#LogoutBtn:hover {
+            background-color: rgba(239, 68, 68, 0.1);
+        }
+        
+        /* ========== 页面标题 ========== */
+        QLabel#PageTitle {
+            font-size: 28px;
+            font-weight: bold;
+            color: #1e293b;
+        }
+        
+        QLabel#ResultCount {
+            font-size: 14px;
+            color: #64748b;
+        }
+        
+        /* ========== 搜索面板 ========== */
+        QWidget#SearchPanel {
+            background-color: #ffffff;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        QLabel#FieldLabel {
+            font-size: 13px;
+            font-weight: 600;
+            color: #64748b;
+            margin-bottom: 6px;
+        }
+        
+        QComboBox#CityCombo {
+            background-color: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 10px 15px;
+            font-size: 15px;
+            color: #1e293b;
+        }
+        
+        QComboBox#CityCombo:focus {
+            border-color: #3b82f6;
+            background-color: white;
+        }
+        
+        QComboBox#CityCombo::drop-down {
+            border: none;
+            width: 30px;
+        }
+        
+        QComboBox#CityCombo::down-arrow {
+            image: none;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 6px solid #94a3b8;
+            margin-right: 10px;
+        }
+        
+        QComboBox#CityCombo QAbstractItemView {
+            background-color: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            color: #1e293b;
+            selection-background-color: #3b82f6;
+            selection-color: white;
+            outline: none;
+        }
+        
+        QDateEdit#DateEdit {
+            background-color: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 10px 15px;
+            font-size: 15px;
+            color: #1e293b;
+        }
+        
+        QDateEdit#DateEdit:focus {
+            border-color: #3b82f6;
+            background-color: white;
+        }
+        
+        QDateEdit#DateEdit::drop-down {
+            border: none;
+            width: 30px;
+        }
+        
+        QPushButton#SwapBtn {
+            background-color: #e2e8f0;
+            border: none;
+            border-radius: 22px;
+            color: #64748b;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        QPushButton#SwapBtn:hover {
+            background-color: #cbd5e1;
+            color: #1e293b;
+        }
+        
+        QPushButton#SearchBtn {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 #3b82f6, stop:1 #8b5cf6);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 15px;
+            font-weight: bold;
+        }
+        
+        QPushButton#SearchBtn:hover {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 #2563eb, stop:1 #7c3aed);
+        }
+        
+        QLabel#QuickLabel {
+            font-size: 13px;
+            color: #64748b;
+        }
+        
+        QPushButton#QuickDateBtn {
+            background-color: #f1f5f9;
+            border: none;
+            border-radius: 6px;
+            color: #64748b;
+            font-size: 12px;
+            padding: 6px 12px;
+        }
+        
+        QPushButton#QuickDateBtn:hover {
+            background-color: #e2e8f0;
+            color: #1e293b;
+        }
+        
+        /* ========== 结果区域 ========== */
+        QScrollArea#FlightScrollArea {
+            background-color: transparent;
+            border: none;
+        }
+        
+        QLabel#HintLabel, QLabel#EmptyLabel {
+            font-size: 16px;
+            color: #94a3b8;
+            padding: 60px;
+        }
+        
+        /* ========== 滚动条 ========== */
+        QScrollBar:vertical {
+            background: transparent;
+            width: 8px;
+            margin: 0;
+        }
+        
+        QScrollBar::handle:vertical {
+            background: #cbd5e1;
+            border-radius: 4px;
+            min-height: 30px;
+        }
+        
+        QScrollBar::handle:vertical:hover {
+            background: #94a3b8;
+        }
+        
+        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+            height: 0;
+        }
+        
+        /* ========== 卡片 ========== */
+        QWidget#FlightCard, QWidget#OrderCard {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+        }
+        
+        QWidget#FlightCard:hover, QWidget#OrderCard:hover {
+            border-color: #3b82f6;
+            background-color: #f8fafc;
+        }
+        
+        QLabel#FlightId { font-size: 16px; font-weight: 600; color: #1e293b; }
+        QLabel#TimeLabel { font-size: 26px; font-weight: 700; color: #3b82f6; }
+        QLabel#CityLabel { font-size: 15px; font-weight: 500; color: #1e293b; }
+        QLabel#AirportLabel { font-size: 12px; color: #64748b; }
+        QLabel#PriceLabel { font-size: 22px; font-weight: 700; color: #f97316; }
+        QLabel#DurationLabel { font-size: 12px; color: #64748b; }
+        QLabel#SeatsLabel { font-size: 12px; color: #64748b; }
+        QLabel#ArrowLabel { font-size: 20px; color: #cbd5e1; }
+        
+        QPushButton#BookBtn {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #3b82f6, stop:1 #8b5cf6);
+            border: none;
+            border-radius: 20px;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 10px 25px;
+        }
+        
+        QPushButton#BookBtn:hover {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2563eb, stop:1 #7c3aed);
+        }
+        
+        QPushButton#ChangeBtn {
+            background-color: rgba(34, 197, 94, 0.1);
+            border: 1px solid #22c55e;
+            border-radius: 20px;
+            color: #16a34a;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 10px 25px;
+        }
+        
+        QPushButton#ChangeBtn:hover {
+            background-color: #22c55e;
+            color: white;
+        }
+        
+        QPushButton#CancelBtn {
+            background-color: rgba(239, 68, 68, 0.1);
+            border: 1px solid #ef4444;
+            border-radius: 20px;
+            color: #dc2626;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 10px 25px;
+        }
+        
+        QPushButton#CancelBtn:hover {
+            background-color: #ef4444;
+            color: white;
+        }
+        
+        /* ========== 对话框 ========== */
+        QMessageBox {
+            background-color: white;
+        }
+        
+        QMessageBox QLabel {
+            color: #1e293b;
+        }
+        
+        QMessageBox QPushButton {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 20px;
+            font-weight: bold;
+        }
+        
+        QMessageBox QPushButton:hover {
+            background-color: #2563eb;
+        }
+    )";
+    
+    qApp->setStyleSheet(theme);
+}
+
+QGraphicsDropShadowEffect* MainWindow::createShadow(QColor color, int blur, int offsetY)
+{
+    QGraphicsDropShadowEffect *shadow = new QGraphicsDropShadowEffect(this);
+    shadow->setBlurRadius(blur);
+    shadow->setColor(color);
+    shadow->setOffset(0, offsetY);
+    return shadow;
 }

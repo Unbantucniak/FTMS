@@ -3,7 +3,6 @@ cmake_minimum_required(VERSION 3.21)
 project(QtDesktopClient LANGUAGES CXX)
 
 set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -19,7 +18,6 @@ endif()
 set(SOURCES
     main.cpp
     network/tcp_client.cpp
-    ui/flight_page.cpp
     ui/login_page.cpp
     ui/main_window.cpp
     ui/orders_page.cpp
@@ -27,11 +25,11 @@ set(SOURCES
     ui/register_page.cpp
     ui/flight_card.cpp
     ui/order_card.cpp
+    ui/seat_selection_dialog.cpp
 )
 
 set(HEADERS
     network/tcp_client.h
-    ui/flight_page.h
     ui/login_page.h
     ui/main_window.h
     ui/orders_page.h
@@ -39,19 +37,16 @@ set(HEADERS
     ui/register_page.h
     ui/flight_card.h
     ui/order_card.h
+    ui/seat_selection_dialog.h
+    ui/theme_manager.h
     ${COMMON_INCLUDE_DIR}/data_model.h
 )
 
-set(UIS
-    ui/flight_page.ui
-    ui/login_page.ui
-    ui/main_window.ui
-)
+# 已移除 .ui 文件依赖，所有 UI 均使用纯代码构建
 
 add_executable(QtDesktopClient
     ${SOURCES}
     ${HEADERS}
-    ${UIS}
 )
 
 target_include_directories(QtDesktopClient PRIVATE

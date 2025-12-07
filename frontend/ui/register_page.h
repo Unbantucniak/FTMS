@@ -25,6 +25,7 @@ private:
     QPushButton *backBtn;
 
     void setupUI();
+    void showMessage(const QString& title, const QString& text, bool success);
 };
 
 #endif // REGISTER_PAGE_H
