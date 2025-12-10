@@ -23,6 +23,8 @@ public:
     void checkUsername(const QString& username);
     void getCities();
     void getOccupiedSeats(const QString& flightId);
+    void sendAIChatMessage(const QString& username, const QString& message);
+    void changePassword(const QString& username, const QString& oldPass, const QString& newPass);
 
 signals:
     void loginResult(ResponseStatus status);
@@ -37,6 +39,8 @@ signals:
     void changeTicketResult(bool success);
     void citiesResult(const QStringList& cities);
     void occupiedSeatsResult(const QStringList& seats);
+    void aiChatResult(bool success, const QString& response);
+    void changePasswordResult(bool success);
 
 private slots:
     void onReadyRead();

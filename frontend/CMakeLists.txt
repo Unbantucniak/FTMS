@@ -26,6 +26,8 @@ set(SOURCES
     ui/flight_card.cpp
     ui/order_card.cpp
     ui/seat_selection_dialog.cpp
+    ui/chat_dialog.cpp
+    resources.qrc
 )
 
 set(HEADERS
@@ -38,6 +40,7 @@ set(HEADERS
     ui/flight_card.h
     ui/order_card.h
     ui/seat_selection_dialog.h
+    ui/chat_dialog.h
     ui/theme_manager.h
     ${COMMON_INCLUDE_DIR}/data_model.h
 )

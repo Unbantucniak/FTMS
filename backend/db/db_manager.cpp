@@ -251,6 +251,40 @@ bool DBManager::updateUserInfo(const User& user) {
     }
 }
 
+bool DBManager::changePassword(const QString& username, const QString& oldPass, const QString& newPass) {
+    if (!m_db.isOpen()) return false;
+
+    QSqlQuery query(m_db);
+    
+    // 1. 验证旧密码是否正确
+    query.prepare("SELECT password FROM user WHERE username = :username");
+    query.bindValue(":username", username);
+    
+    if (!query.exec() || !query.next()) {
+        qDebug() << "修改密码失败：用户不存在" << username;
+        return false;
+    }
+    
+    QString storedPassword = query.value(0).toString();
+    if (storedPassword != oldPass) {
+        qDebug() << "修改密码失败：旧密码不正确";
+        return false;
+    }
+    
+    // 2. 更新密码
+    query.prepare("UPDATE user SET password = :newPass WHERE username = :username");
+    query.bindValue(":newPass", newPass);
+    query.bindValue(":username", username);
+    
+    if (query.exec()) {
+        qDebug() << "用户" << username << "密码修改成功";
+        return true;
+    } else {
+        qDebug() << "修改密码失败：" << query.lastError().text();
+        return false;
+    }
+}
+
 bool DBManager::cancelTicket(const QString& orderId) {
     if (!m_db.isOpen()) return false;
 
@@ -426,6 +460,34 @@ QStringList DBManager::getOccupiedSeats(const QString& flightId) {
         }
     }
     return seats;
+}
+
+QList<Flight> DBManager::getAllFlights(int limit) {
+    QList<Flight> flights;
+    if (!m_db.isOpen()) return flights;
+
+    QSqlQuery query(m_db);
+    query.prepare("SELECT flight_id, departure, destination, departure_airport, arrival_airport, "
+                  "depart_time, arrive_time, price, rest_seats FROM flight "
+                  "WHERE depart_time > NOW() ORDER BY depart_time ASC LIMIT :limit");
+    query.bindValue(":limit", limit);
+    
+    if (query.exec()) {
+        while (query.next()) {
+            Flight f;
+            f.flight_id = query.value(0).toString();
+            f.departure = query.value(1).toString();
+            f.destination = query.value(2).toString();
+            f.departure_airport = query.value(3).toString();
+            f.arrival_airport = query.value(4).toString();
+            f.depart_time = query.value(5).toDateTime();
+            f.arrive_time = query.value(6).toDateTime();
+            f.price = query.value(7).toDouble();
+            f.rest_seats = query.value(8).toInt();
+            flights.append(f);
+        }
+    }
+    return flights;
 }
 
 QString DBManager::bookTicketWithSeat(const QString& username, const QString& flightId, const QString& seatNumber) {

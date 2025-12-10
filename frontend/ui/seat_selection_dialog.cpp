@@ -337,9 +337,6 @@ void SeatSelectionDialog::setupUI()
 
 void SeatSelectionDialog::createSeatButton(int row, int col, const QString& seatId)
 {
-    Q_UNUSED(row);
-    Q_UNUSED(col);
-    
     QPushButton *btn = new QPushButton(seatId);
     btn->setFixedSize(68, 46);
     btn->setCursor(Qt::PointingHandCursor);
@@ -418,7 +415,6 @@ void SeatSelectionDialog::onSeatClicked()
             border-radius: 8px;
             font-size: 14px;
             font-weight: bold;
-            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
         }
     )");
     

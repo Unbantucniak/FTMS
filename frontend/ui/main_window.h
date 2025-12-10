@@ -18,6 +18,7 @@
 #include "profile_page.h"
 
 struct Flight;  // Forward declaration
+class ChatWidget;
 
 class MainWindow : public QMainWindow
 {
@@ -34,6 +35,7 @@ private slots:
     void onOccupiedSeatsReceived(const QStringList& seats);
     void onCitiesReceived(const QStringList& cities);
     void performSearch();
+    // void openChat(); // Removed as chat is integrated
 
 private:
     void setupUI();
@@ -51,10 +53,14 @@ private:
     QWidget *m_sidebar;
     QStackedWidget *m_stack;
     
+    // Chat Widget
+    ChatWidget *m_chatWidget;
+    
     // Sidebar buttons
     QPushButton *m_flightBtn;
     QPushButton *m_ordersBtn;
     QPushButton *m_profileBtn;
+    QPushButton *m_chatBtn;
     QPushButton *m_themeBtn;
     QPushButton *m_logoutBtn;
     

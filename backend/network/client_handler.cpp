@@ -1,5 +1,5 @@
 #include "client_handler.h"
-
+#include "../ai/ai_manager.h"
 #include "db/db_manager.h"
 #include <QDebug>
 
@@ -16,8 +16,13 @@ void ClientHandler::run() {
     connect(m_socket, &QTcpSocket::readyRead, this, &ClientHandler::onReadyRead, Qt::DirectConnection);
     connect(m_socket, &QTcpSocket::disconnected, this, &ClientHandler::onDisconnected, Qt::DirectConnection);
 
+    m_aiManager = new AIManager();
+
     qDebug() << "客户端连接成功，等待数据...";
     exec();
+    
+    delete m_aiManager;
+    m_aiManager = nullptr;
 }
 
 void ClientHandler::onReadyRead() {
@@ -66,6 +71,12 @@ void ClientHandler::onReadyRead() {
         break;
     case GetOccupiedSeatsRequest:
         handleGetOccupiedSeatsRequest(data);
+        break;
+    case AIChatRequest:
+        handleAIChatRequest(data);
+        break;
+    case ChangePasswordRequest:
+        handleChangePasswordRequest(data);
         break;
     default:
         sendResponse(Failed);
@@ -268,9 +279,54 @@ void ClientHandler::sendResponse(ResponseStatus status, const QByteArray& data) 
     m_socket->flush();
 }
 
+void ClientHandler::handleAIChatRequest(const QByteArray& data) {
+    QDataStream in(data);
+    QString username, message;
+    in >> username >> message;
+
+    // AI不提供数据库查询服务，仅作为旅行咨询助手
+    QString context = "";
+
+    // 连接一次性信号处理响应
+    QMetaObject::Connection *conn = new QMetaObject::Connection;
+    *conn = connect(m_aiManager, &AIManager::responseReceived, this, [this, conn](const QString& response) {
+        QByteArray responseData;
+        QDataStream out(&responseData, QIODevice::WriteOnly);
+        out.setVersion(QDataStream::Qt_6_0);
+        out << response;
+        sendResponse(Success, responseData);
+        QObject::disconnect(*conn);
+        delete conn;
+    });
+    
+    QMetaObject::Connection *errConn = new QMetaObject::Connection;
+    *errConn = connect(m_aiManager, &AIManager::errorOccurred, this, [this, errConn](const QString& error) {
+        QByteArray responseData;
+        QDataStream out(&responseData, QIODevice::WriteOnly);
+        out.setVersion(QDataStream::Qt_6_0);
+        out << error;
+        sendResponse(Failed, responseData);
+        QObject::disconnect(*errConn);
+        delete errConn;
+    });
+
+    m_aiManager->sendMessage(message, context);
+}
+
 void ClientHandler::onDisconnected() {
     qDebug() << "客户端断开连接，描述符：" << m_socketDescriptor;
     m_socket->close();
     m_socket->deleteLater();
     quit();
+}
+
+void ClientHandler::handleChangePasswordRequest(const QByteArray& data) {
+    QDataStream in(data);
+    QString username, oldPass, newPass;
+    in >> username >> oldPass >> newPass;
+
+    bool success = DBManager::getInstance()->changePassword(username, oldPass, newPass);
+    sendResponse(success ? Success : Failed);
+
+    qDebug() << "修改密码请求 - 用户名：" << username << " 结果：" << (success ? "成功" : "失败");
 }

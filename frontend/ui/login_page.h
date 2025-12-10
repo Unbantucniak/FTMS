@@ -16,7 +16,7 @@ class LoginPage : public QWidget
 
 public:
     explicit LoginPage(QWidget *parent = nullptr);
-    ~LoginPage() = default;
+    ~LoginPage();
 
 private:
     void setupUI();

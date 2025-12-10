@@ -17,6 +17,12 @@ LoginPage::LoginPage(QWidget *parent) : QWidget(parent)
     TcpClient::getInstance()->connectToServer("127.0.0.1", 12345);
 }
 
+LoginPage::~LoginPage()
+{
+    // 断开与TcpClient单例的所有连接，防止野指针和重复触发
+    disconnect(TcpClient::getInstance(), nullptr, this, nullptr);
+}
+
 void LoginPage::setupUI()
 {
     setWindowTitle("扶摇航空 - 登录");
@@ -321,6 +327,8 @@ void LoginPage::setupConnections()
     
     connect(TcpClient::getInstance(), &TcpClient::loginResult, this, [this](ResponseStatus status){
         if (status == Success) {
+            // 先断开连接，防止重复触发
+            disconnect(TcpClient::getInstance(), &TcpClient::loginResult, this, nullptr);
             MainWindow *w = new MainWindow();
             w->setUsername(m_usernameEdit->text());
             w->setAttribute(Qt::WA_DeleteOnClose);

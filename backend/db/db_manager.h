@@ -33,6 +33,7 @@ public:
     bool updateUserInfo(const User& user);
     bool cancelTicket(const QString& orderId);
     bool changeTicket(const QString& orderId, const QString& newFlightId);
+    bool changePassword(const QString& username, const QString& oldPass, const QString& newPass);
 
     bool registerUser(const User& user);
     bool addFlight(const Flight& flight);
@@ -41,6 +42,7 @@ public:
     int getRestSeats(const QString& flight_id);
     QStringList getCities();
     QStringList getOccupiedSeats(const QString& flightId);
+    QList<Flight> getAllFlights(int limit = 20);
     void close();
 
 private:

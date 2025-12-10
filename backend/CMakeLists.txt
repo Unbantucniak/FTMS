@@ -21,12 +21,14 @@ set(SOURCES
     db/db_manager.cpp
     network/client_handler.cpp
     network/tcp_server.cpp
+    ai/ai_manager.cpp
 )
 
 set(HEADERS
     db/db_manager.h
     network/client_handler.h
     network/tcp_server.h
+    ai/ai_manager.h
     ${COMMON_INCLUDE_DIR}/data_model.h
 )
 

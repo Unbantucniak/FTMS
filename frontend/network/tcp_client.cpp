@@ -345,7 +345,52 @@ void TcpClient::onReadyRead()
         emit occupiedSeatsResult(seats);
         break;
     }
+    case AIChatRequest: {
+        QString response;
+        if (status == Success || status == Failed) {
+            dataIn >> response;
+        }
+        emit aiChatResult(status == Success, response);
+        break;
+    }
+    case ChangePasswordRequest: {
+        emit changePasswordResult(status == Success);
+        break;
+    }
     default:
         break;
     }
+}
+
+void TcpClient::sendAIChatMessage(const QString& username, const QString& message) {
+    QByteArray data;
+    QDataStream out(&data, QIODevice::WriteOnly);
+    out.setVersion(QDataStream::Qt_6_0);
+    out << username << message; // 同时发送用户名和消息
+
+    QByteArray request;
+    QDataStream reqOut(&request, QIODevice::WriteOnly);
+    reqOut.setVersion(QDataStream::Qt_6_0);
+    reqOut << (int)AIChatRequest << data;
+
+    m_socket->write(request);
+    m_lastRequestType = AIChatRequest;
+}
+
+void TcpClient::changePassword(const QString& username, const QString& oldPass, const QString& newPass) {
+    if(m_socket->state() != QAbstractSocket::ConnectedState) return;
+    m_lastRequestType = ChangePasswordRequest;
+    
+    QByteArray data;
+    QDataStream out(&data, QIODevice::WriteOnly);
+    out.setVersion(QDataStream::Qt_6_0);
+    out << username << oldPass << newPass;
+    
+    QByteArray request;
+    QDataStream reqOut(&request, QIODevice::WriteOnly);
+    reqOut.setVersion(QDataStream::Qt_6_0);
+    reqOut << (int)ChangePasswordRequest << data;
+    
+    m_socket->write(request);
+    m_socket->flush();
 }

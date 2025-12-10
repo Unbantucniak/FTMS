@@ -37,8 +37,12 @@ private:
     void handleCheckUsernameRequest(const QByteArray& data);
     void handleGetCitiesRequest(const QByteArray& data);
     void handleGetOccupiedSeatsRequest(const QByteArray& data);
+    void handleAIChatRequest(const QByteArray& data);
+    void handleChangePasswordRequest(const QByteArray& data);
 
     void sendResponse(ResponseStatus status, const QByteArray& data = QByteArray());
+    
+    class AIManager* m_aiManager = nullptr;
 };
 
 #endif // CLIENT_HANDLER_H

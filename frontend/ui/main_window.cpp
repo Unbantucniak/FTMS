@@ -3,6 +3,7 @@
 #include "flight_card.h"
 #include "login_page.h"
 #include "seat_selection_dialog.h"
+#include "chat_dialog.h"
 #include "theme_manager.h"
 #include <QMessageBox>
 #include <QApplication>
@@ -59,6 +60,10 @@ void MainWindow::setupUI()
     m_profilePage = new ProfilePage();
     m_stack->addWidget(m_profilePage);
     
+    // 智能客服页
+    m_chatWidget = new ChatWidget();
+    m_stack->addWidget(m_chatWidget);
+
     mainLayout->addWidget(m_stack, 1);
 }
 
@@ -119,6 +124,9 @@ void MainWindow::setupSidebar()
     
     m_profileBtn = createNavBtn("👤", "个人中心");
     sidebarLayout->addWidget(m_profileBtn);
+
+    m_chatBtn = createNavBtn("🤖", "智能客服");
+    sidebarLayout->addWidget(m_chatBtn);
     
     sidebarLayout->addStretch();
     
@@ -146,8 +154,8 @@ void MainWindow::setupFlightPage()
     m_flightPage->setObjectName("FlightPage");
     
     QVBoxLayout *pageLayout = new QVBoxLayout(m_flightPage);
-    pageLayout->setContentsMargins(40, 30, 40, 30);
-    pageLayout->setSpacing(25);
+    pageLayout->setContentsMargins(48, 32, 48, 32);
+    pageLayout->setSpacing(28);
     
     // ========== 顶部标题区 ==========
     QHBoxLayout *headerLayout = new QHBoxLayout();
@@ -166,11 +174,11 @@ void MainWindow::setupFlightPage()
     // ========== 搜索面板 ==========
     QWidget *searchPanel = new QWidget(m_flightPage);
     searchPanel->setObjectName("SearchPanel");
-    searchPanel->setGraphicsEffect(createShadow(QColor(0, 0, 0, 20), 20, 5));
+    searchPanel->setGraphicsEffect(createShadow(QColor(0, 0, 0, 25), 24, 6));
     
     QVBoxLayout *searchLayout = new QVBoxLayout(searchPanel);
-    searchLayout->setContentsMargins(30, 25, 30, 25);
-    searchLayout->setSpacing(20);
+    searchLayout->setContentsMargins(32, 28, 32, 28);
+    searchLayout->setSpacing(22);
     
     // 搜索输入行
     QHBoxLayout *inputLayout = new QHBoxLayout();
@@ -178,13 +186,14 @@ void MainWindow::setupFlightPage()
     
     // 出发地
     QVBoxLayout *depLayout = new QVBoxLayout();
-    QLabel *depLabel = new QLabel("出发城市");
+    depLayout->setSpacing(8);
+    QLabel *depLabel = new QLabel("✈ 出发城市");
     depLabel->setObjectName("FieldLabel");
     m_departureCombo = new QComboBox();
     m_departureCombo->setObjectName("CityCombo");
     m_departureCombo->setEditable(true);
-    m_departureCombo->setMinimumHeight(50);
-    m_departureCombo->setMinimumWidth(200);
+    m_departureCombo->setMinimumHeight(52);
+    m_departureCombo->setMinimumWidth(220);
     m_departureCombo->lineEdit()->setPlaceholderText("请选择或输入城市");
     m_departureCombo->setInsertPolicy(QComboBox::NoInsert);
     depLayout->addWidget(depLabel);
@@ -201,13 +210,14 @@ void MainWindow::setupFlightPage()
     
     // 目的地
     QVBoxLayout *destLayout = new QVBoxLayout();
-    QLabel *destLabel = new QLabel("到达城市");
+    destLayout->setSpacing(8);
+    QLabel *destLabel = new QLabel("📍 到达城市");
     destLabel->setObjectName("FieldLabel");
     m_destinationCombo = new QComboBox();
     m_destinationCombo->setObjectName("CityCombo");
     m_destinationCombo->setEditable(true);
-    m_destinationCombo->setMinimumHeight(50);
-    m_destinationCombo->setMinimumWidth(200);
+    m_destinationCombo->setMinimumHeight(52);
+    m_destinationCombo->setMinimumWidth(220);
     m_destinationCombo->lineEdit()->setPlaceholderText("请选择或输入城市");
     m_destinationCombo->setInsertPolicy(QComboBox::NoInsert);
     destLayout->addWidget(destLabel);
@@ -218,16 +228,17 @@ void MainWindow::setupFlightPage()
     
     // 日期
     QVBoxLayout *dateLayout = new QVBoxLayout();
-    QLabel *dateLabel = new QLabel("出发日期");
+    dateLayout->setSpacing(8);
+    QLabel *dateLabel = new QLabel("📅 出发日期");
     dateLabel->setObjectName("FieldLabel");
     m_dateEdit = new QDateEdit();
     m_dateEdit->setObjectName("DateEdit");
     m_dateEdit->setCalendarPopup(true);
     m_dateEdit->setDate(QDate::currentDate());
     m_dateEdit->setMinimumDate(QDate::currentDate());
-    m_dateEdit->setDisplayFormat("yyyy年MM月dd日");
-    m_dateEdit->setMinimumHeight(50);
-    m_dateEdit->setMinimumWidth(180);
+    m_dateEdit->setDisplayFormat("yyyy年MM月dd日 ddd");
+    m_dateEdit->setMinimumHeight(52);
+    m_dateEdit->setMinimumWidth(200);
     dateLayout->addWidget(dateLabel);
     dateLayout->addWidget(m_dateEdit);
     inputLayout->addLayout(dateLayout);
@@ -235,9 +246,9 @@ void MainWindow::setupFlightPage()
     inputLayout->addStretch();
     
     // 搜索按钮
-    m_searchBtn = new QPushButton("搜索航班");
+    m_searchBtn = new QPushButton("🔍 搜索航班");
     m_searchBtn->setObjectName("SearchBtn");
-    m_searchBtn->setMinimumSize(140, 50);
+    m_searchBtn->setMinimumSize(150, 52);
     m_searchBtn->setCursor(Qt::PointingHandCursor);
     inputLayout->addWidget(m_searchBtn, 0, Qt::AlignBottom);
     
@@ -265,6 +276,7 @@ void MainWindow::setupFlightPage()
     quickDateLayout->addWidget(createQuickBtn("明天", 1));
     quickDateLayout->addWidget(createQuickBtn("后天", 2));
     quickDateLayout->addWidget(createQuickBtn("本周末", (6 - QDate::currentDate().dayOfWeek() + 7) % 7 + 1));
+    quickDateLayout->addWidget(createQuickBtn("下周", 7));
     quickDateLayout->addStretch();
     
     searchLayout->addLayout(quickDateLayout);
@@ -301,12 +313,15 @@ void MainWindow::setupConnections()
     connect(m_flightBtn, &QPushButton::clicked, [this](){ navigateTo(0); });
     connect(m_ordersBtn, &QPushButton::clicked, [this](){ navigateTo(1); });
     connect(m_profileBtn, &QPushButton::clicked, [this](){ navigateTo(2); });
+    connect(m_chatBtn, &QPushButton::clicked, [this](){ navigateTo(3); });
     connect(m_themeBtn, &QPushButton::clicked, this, &MainWindow::switchTheme);
     
     connect(m_logoutBtn, &QPushButton::clicked, [this](){
-        this->close();
         LoginPage *login = new LoginPage();
+        login->setAttribute(Qt::WA_DeleteOnClose);
         login->show();
+        this->close();
+        this->deleteLater();
     });
     
     // 搜索功能
@@ -451,6 +466,33 @@ void MainWindow::setupConnections()
     });
     
     connect(TcpClient::getInstance(), &TcpClient::userInfoResult, m_profilePage, &ProfilePage::setUserInfo);
+    
+    // 修改密码
+    connect(m_profilePage, &ProfilePage::changePassword, this, [this](const QString& oldPass, const QString& newPass){
+        TcpClient::getInstance()->changePassword(m_username, oldPass, newPass);
+    });
+    connect(TcpClient::getInstance(), &TcpClient::changePasswordResult, this, [this](bool success){
+        QMessageBox msgBox(this);
+        msgBox.setStandardButtons(QMessageBox::Ok);
+        msgBox.setButtonText(QMessageBox::Ok, "确定");
+        if (success) {
+            msgBox.setWindowTitle("修改成功");
+            msgBox.setText("密码已修改，请重新登录");
+            msgBox.setIcon(QMessageBox::Information);
+            msgBox.exec();
+            // 退出登录
+            LoginPage *login = new LoginPage();
+            login->setAttribute(Qt::WA_DeleteOnClose);
+            login->show();
+            this->close();
+            this->deleteLater();
+        } else {
+            msgBox.setWindowTitle("修改失败");
+            msgBox.setText("当前密码错误或修改失败");
+            msgBox.setIcon(QMessageBox::Warning);
+            msgBox.exec();
+        }
+    });
 }
 
 void MainWindow::performSearch()
@@ -508,15 +550,30 @@ void MainWindow::onOccupiedSeatsReceived(const QStringList& seats)
     m_pendingFlightId.clear();
 }
 
+/* openChat removed - integrated
+void MainWindow::openChat()
+{
+    ChatDialog *dialog = new ChatDialog(this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->show();
+}
+*/
+
 void MainWindow::setUsername(const QString& username)
 {
     m_username = username;
+    m_chatWidget->setUsername(username);
 }
 
 void MainWindow::navigateTo(int index)
 {
     m_stack->setCurrentIndex(index);
     
+    m_flightBtn->setChecked(index == 0);
+    m_ordersBtn->setChecked(index == 1);
+    m_profileBtn->setChecked(index == 2);
+    m_chatBtn->setChecked(index == 3);
+
     if (index == 1) {
         TcpClient::getInstance()->queryOrders(m_username);
     } else if (index == 2) {
@@ -530,6 +587,9 @@ void MainWindow::switchTheme()
     applyTheme();
     if (m_profilePage) {
         m_profilePage->updateTheme(m_isDarkTheme);
+    }
+    if (m_chatWidget) {
+        m_chatWidget->setTheme(m_isDarkTheme);
     }
 }
 
@@ -669,19 +729,80 @@ void MainWindow::applyTheme()
         QDateEdit#DateEdit {
             background-color: #0f172a;
             border: 2px solid #334155;
-            border-radius: 10px;
-            padding: 10px 15px;
+            border-radius: 12px;
+            padding: 12px 16px;
             font-size: 15px;
             color: #f1f5f9;
+            font-weight: 500;
         }
         
         QDateEdit#DateEdit:focus {
             border-color: #3b82f6;
+            background-color: #1e293b;
         }
         
         QDateEdit#DateEdit::drop-down {
             border: none;
-            width: 30px;
+            width: 36px;
+            subcontrol-origin: padding;
+            subcontrol-position: right center;
+        }
+        
+        QDateEdit#DateEdit::down-arrow {
+            width: 16px;
+            height: 16px;
+        }
+        
+        /* 日历弹出框样式 */
+        QCalendarWidget {
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+        }
+        
+        QCalendarWidget QToolButton {
+            color: #f1f5f9;
+            background-color: transparent;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-weight: bold;
+        }
+        
+        QCalendarWidget QToolButton:hover {
+            background-color: #334155;
+        }
+        
+        QCalendarWidget QMenu {
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            color: #f1f5f9;
+        }
+        
+        QCalendarWidget QSpinBox {
+            background-color: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            color: #f1f5f9;
+            padding: 4px;
+        }
+        
+        QCalendarWidget QWidget#qt_calendar_navigationbar {
+            background-color: #0f172a;
+            border-bottom: 1px solid #334155;
+            padding: 8px;
+        }
+        
+        QCalendarWidget QAbstractItemView:enabled {
+            background-color: #1e293b;
+            color: #f1f5f9;
+            selection-background-color: #3b82f6;
+            selection-color: white;
+            outline: none;
+        }
+        
+        QCalendarWidget QAbstractItemView:disabled {
+            color: #64748b;
         }
         
         QPushButton#SwapBtn {
@@ -778,12 +899,13 @@ void MainWindow::applyTheme()
         }
         
         QLabel#FlightId { font-size: 16px; font-weight: 600; color: #f1f5f9; }
-        QLabel#TimeLabel { font-size: 26px; font-weight: 700; color: #60a5fa; }
-        QLabel#CityLabel { font-size: 15px; font-weight: 500; color: #f1f5f9; }
+        QLabel#TimeLabel { font-size: 28px; font-weight: 700; color: #60a5fa; }
+        QLabel#CityLabel { font-size: 16px; font-weight: 500; color: #f1f5f9; }
         QLabel#AirportLabel { font-size: 12px; color: #64748b; }
-        QLabel#PriceLabel { font-size: 22px; font-weight: 700; color: #fb923c; }
+        QLabel#PriceLabel { font-size: 24px; font-weight: 700; color: #fb923c; }
         QLabel#DurationLabel { font-size: 12px; color: #64748b; }
-        QLabel#SeatsLabel { font-size: 12px; color: #94a3b8; }
+        QLabel#SeatsLabel { font-size: 13px; color: #94a3b8; }
+        QLabel#SeatsLabelLow { font-size: 13px; color: #f87171; font-weight: 600; }
         QLabel#ArrowLabel { font-size: 20px; color: #475569; }
         
         QPushButton#BookBtn {
@@ -985,22 +1107,82 @@ void MainWindow::applyTheme()
         }
         
         QDateEdit#DateEdit {
-            background-color: #f8fafc;
+            background-color: #ffffff;
             border: 2px solid #e2e8f0;
-            border-radius: 10px;
-            padding: 10px 15px;
+            border-radius: 12px;
+            padding: 12px 16px;
             font-size: 15px;
             color: #1e293b;
+            font-weight: 500;
         }
         
         QDateEdit#DateEdit:focus {
             border-color: #3b82f6;
-            background-color: white;
+            background-color: #f8fafc;
         }
         
         QDateEdit#DateEdit::drop-down {
             border: none;
-            width: 30px;
+            width: 36px;
+            subcontrol-origin: padding;
+            subcontrol-position: right center;
+        }
+        
+        QDateEdit#DateEdit::down-arrow {
+            width: 16px;
+            height: 16px;
+        }
+        
+        /* 日历弹出框样式 */
+        QCalendarWidget {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+        }
+        
+        QCalendarWidget QToolButton {
+            color: #1e293b;
+            background-color: transparent;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-weight: bold;
+        }
+        
+        QCalendarWidget QToolButton:hover {
+            background-color: #f1f5f9;
+        }
+        
+        QCalendarWidget QMenu {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            color: #1e293b;
+        }
+        
+        QCalendarWidget QSpinBox {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            color: #1e293b;
+            padding: 4px;
+        }
+        
+        QCalendarWidget QWidget#qt_calendar_navigationbar {
+            background-color: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 8px;
+        }
+        
+        QCalendarWidget QAbstractItemView:enabled {
+            background-color: #ffffff;
+            color: #1e293b;
+            selection-background-color: #3b82f6;
+            selection-color: white;
+            outline: none;
+        }
+        
+        QCalendarWidget QAbstractItemView:disabled {
+            color: #94a3b8;
         }
         
         QPushButton#SwapBtn {
@@ -1097,12 +1279,13 @@ void MainWindow::applyTheme()
         }
         
         QLabel#FlightId { font-size: 16px; font-weight: 600; color: #1e293b; }
-        QLabel#TimeLabel { font-size: 26px; font-weight: 700; color: #3b82f6; }
-        QLabel#CityLabel { font-size: 15px; font-weight: 500; color: #1e293b; }
+        QLabel#TimeLabel { font-size: 28px; font-weight: 700; color: #3b82f6; }
+        QLabel#CityLabel { font-size: 16px; font-weight: 500; color: #1e293b; }
         QLabel#AirportLabel { font-size: 12px; color: #64748b; }
-        QLabel#PriceLabel { font-size: 22px; font-weight: 700; color: #f97316; }
+        QLabel#PriceLabel { font-size: 24px; font-weight: 700; color: #f97316; }
         QLabel#DurationLabel { font-size: 12px; color: #64748b; }
-        QLabel#SeatsLabel { font-size: 12px; color: #64748b; }
+        QLabel#SeatsLabel { font-size: 13px; color: #64748b; }
+        QLabel#SeatsLabelLow { font-size: 13px; color: #ef4444; font-weight: 600; }
         QLabel#ArrowLabel { font-size: 20px; color: #cbd5e1; }
         
         QPushButton#BookBtn {
@@ -1173,6 +1356,10 @@ void MainWindow::applyTheme()
     )";
     
     qApp->setStyleSheet(theme);
+    
+    if (m_chatWidget) {
+        m_chatWidget->setTheme(m_isDarkTheme);
+    }
 }
 
 QGraphicsDropShadowEffect* MainWindow::createShadow(QColor color, int blur, int offsetY)

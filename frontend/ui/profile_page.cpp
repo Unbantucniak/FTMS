@@ -308,48 +308,7 @@ void ProfilePage::setupUI()
     line2->setFixedHeight(1);
     securityLayout->addWidget(line2);
     
-    QLabel *passHint = new QLabel("修改密码后需要重新登录", securityCard);
-    passHint->setStyleSheet("font-size: 12px; color: #64748b; margin-top: 5px;");
-    securityLayout->addWidget(passHint);
-    
-    QString passInputStyle = R"(
-        QLineEdit {
-            background-color: #0f172a;
-            border: 2px solid #334155;
-            border-radius: 8px;
-            padding: 12px 15px;
-            font-size: 14px;
-            color: #f1f5f9;
-        }
-        QLineEdit:focus {
-            border-color: #3b82f6;
-        }
-        QLineEdit::placeholder {
-            color: #64748b;
-        }
-    )";
-    
-    m_oldPasswordEdit = new QLineEdit(securityCard);
-    m_oldPasswordEdit->setPlaceholderText("当前密码");
-    m_oldPasswordEdit->setEchoMode(QLineEdit::Password);
-    m_oldPasswordEdit->setStyleSheet(passInputStyle);
-    m_oldPasswordEdit->setMinimumHeight(45);
-    securityLayout->addWidget(m_oldPasswordEdit);
-    
-    m_newPasswordEdit = new QLineEdit(securityCard);
-    m_newPasswordEdit->setPlaceholderText("新密码（至少6位）");
-    m_newPasswordEdit->setEchoMode(QLineEdit::Password);
-    m_newPasswordEdit->setStyleSheet(passInputStyle);
-    m_newPasswordEdit->setMinimumHeight(45);
-    securityLayout->addWidget(m_newPasswordEdit);
-    
-    m_confirmPasswordEdit = new QLineEdit(securityCard);
-    m_confirmPasswordEdit->setPlaceholderText("确认新密码");
-    m_confirmPasswordEdit->setEchoMode(QLineEdit::Password);
-    m_confirmPasswordEdit->setStyleSheet(passInputStyle);
-    m_confirmPasswordEdit->setMinimumHeight(45);
-    securityLayout->addWidget(m_confirmPasswordEdit);
-    
+    // 修改密码按钮（初始显示）
     m_changePassBtn = new QPushButton("🔑  修改密码", securityCard);
     m_changePassBtn->setStyleSheet(R"(
         QPushButton {
@@ -368,7 +327,125 @@ void ProfilePage::setupUI()
         }
     )");
     m_changePassBtn->setCursor(Qt::PointingHandCursor);
+    securityLayout->addWidget(m_changePassBtn, 0, Qt::AlignLeft);
+    
+    // 密码输入字段容器（初始隐藏）
+    m_passwordFieldsWidget = new QWidget(securityCard);
+    m_passwordFieldsWidget->setVisible(false);
+    QVBoxLayout *passFieldsLayout = new QVBoxLayout(m_passwordFieldsWidget);
+    passFieldsLayout->setContentsMargins(0, 10, 0, 0);
+    passFieldsLayout->setSpacing(12);
+    
+    QLabel *passHint = new QLabel("修改密码后需要重新登录", m_passwordFieldsWidget);
+    passHint->setStyleSheet("font-size: 12px; color: #64748b;");
+    passFieldsLayout->addWidget(passHint);
+
+    QString passInputStyle = R"(
+        QLineEdit {
+            background-color: #0f172a;
+            border: 2px solid #334155;
+            border-radius: 8px;
+            padding: 12px 15px;
+            font-size: 14px;
+            color: #f1f5f9;
+        }
+        QLineEdit:focus {
+            border-color: #3b82f6;
+        }
+        QLineEdit::placeholder {
+            color: #64748b;
+        }
+    )";
+    
+    m_oldPasswordEdit = new QLineEdit(m_passwordFieldsWidget);
+    m_oldPasswordEdit->setPlaceholderText("当前密码");
+    m_oldPasswordEdit->setEchoMode(QLineEdit::Password);
+    m_oldPasswordEdit->setStyleSheet(passInputStyle);
+    m_oldPasswordEdit->setMinimumHeight(45);
+    passFieldsLayout->addWidget(m_oldPasswordEdit);
+    
+    m_newPasswordEdit = new QLineEdit(m_passwordFieldsWidget);
+    m_newPasswordEdit->setPlaceholderText("新密码（至少6位）");
+    m_newPasswordEdit->setEchoMode(QLineEdit::Password);
+    m_newPasswordEdit->setStyleSheet(passInputStyle);
+    m_newPasswordEdit->setMinimumHeight(45);
+    passFieldsLayout->addWidget(m_newPasswordEdit);
+    
+    m_confirmPasswordEdit = new QLineEdit(m_passwordFieldsWidget);
+    m_confirmPasswordEdit->setPlaceholderText("确认新密码");
+    m_confirmPasswordEdit->setEchoMode(QLineEdit::Password);
+    m_confirmPasswordEdit->setStyleSheet(passInputStyle);
+    m_confirmPasswordEdit->setMinimumHeight(45);
+    passFieldsLayout->addWidget(m_confirmPasswordEdit);
+    
+    // 按钮行
+    QHBoxLayout *passBtnLayout = new QHBoxLayout();
+    passBtnLayout->setSpacing(12);
+    
+    m_submitPassBtn = new QPushButton("确认修改", m_passwordFieldsWidget);
+    m_submitPassBtn->setStyleSheet(R"(
+        QPushButton {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 #22c55e, stop:1 #16a34a);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 24px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        QPushButton:hover {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 #16a34a, stop:1 #15803d);
+        }
+    )");
+    m_submitPassBtn->setCursor(Qt::PointingHandCursor);
+    
+    m_cancelPassBtn = new QPushButton("取消", m_passwordFieldsWidget);
+    m_cancelPassBtn->setStyleSheet(R"(
+        QPushButton {
+            background: transparent;
+            color: #94a3b8;
+            border: 1px solid #475569;
+            border-radius: 8px;
+            padding: 10px 24px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        QPushButton:hover {
+            background: #334155;
+            color: #f1f5f9;
+        }
+    )");
+    m_cancelPassBtn->setCursor(Qt::PointingHandCursor);
+    
+    passBtnLayout->addWidget(m_submitPassBtn);
+    passBtnLayout->addWidget(m_cancelPassBtn);
+    passBtnLayout->addStretch();
+    passFieldsLayout->addLayout(passBtnLayout);
+    
+    securityLayout->addWidget(m_passwordFieldsWidget);
+    
+    // 点击"修改密码"按钮展开输入区域
     connect(m_changePassBtn, &QPushButton::clicked, this, [this]() {
+        m_isPasswordExpanded = true;
+        m_changePassBtn->setVisible(false);
+        m_passwordFieldsWidget->setVisible(true);
+        m_oldPasswordEdit->setFocus();
+    });
+    
+    // 点击"取消"收起输入区域
+    connect(m_cancelPassBtn, &QPushButton::clicked, this, [this]() {
+        m_isPasswordExpanded = false;
+        m_changePassBtn->setVisible(true);
+        m_passwordFieldsWidget->setVisible(false);
+        m_oldPasswordEdit->clear();
+        m_newPasswordEdit->clear();
+        m_confirmPasswordEdit->clear();
+    });
+    
+    // 点击"确认修改"提交
+    connect(m_submitPassBtn, &QPushButton::clicked, this, [this]() {
         QString oldPass = m_oldPasswordEdit->text();
         QString newPass = m_newPasswordEdit->text();
         QString confirmPass = m_confirmPasswordEdit->text();
@@ -390,11 +467,14 @@ void ProfilePage::setupUI()
         
         emit changePassword(oldPass, newPass);
         
+        // 收起并清空
+        m_isPasswordExpanded = false;
+        m_changePassBtn->setVisible(true);
+        m_passwordFieldsWidget->setVisible(false);
         m_oldPasswordEdit->clear();
         m_newPasswordEdit->clear();
         m_confirmPasswordEdit->clear();
     });
-    securityLayout->addWidget(m_changePassBtn, 0, Qt::AlignLeft);
     
     contentLayout->addWidget(securityCard);
     

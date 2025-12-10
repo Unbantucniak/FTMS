@@ -30,9 +30,18 @@ void FlightCard::setupUI() {
     mainLayout->setContentsMargins(20, 20, 20, 10);
     mainLayout->setSpacing(20);
 
-    // 航班号
+    // 航班号与出发日期
     QLabel *flightIdLabel = new QLabel(m_flight.flight_id, this);
     flightIdLabel->setObjectName("FlightId");
+
+    QLabel *dateLabel = new QLabel(m_flight.depart_time.date().toString("yyyy-MM-dd ddd"), this);
+    dateLabel->setObjectName("AirportLabel");
+
+    QVBoxLayout *idLayout = new QVBoxLayout();
+    idLayout->setSpacing(4);
+    idLayout->setContentsMargins(0, 0, 0, 0);
+    idLayout->addWidget(flightIdLabel, 0, Qt::AlignLeft);
+    idLayout->addWidget(dateLabel, 0, Qt::AlignLeft);
     
     // 左侧：出发信息
     QVBoxLayout *depLayout = new QVBoxLayout();
@@ -83,7 +92,7 @@ void FlightCard::setupUI() {
     if(!m_flight.arrival_airport.isEmpty()) arrLayout->addWidget(arrAirport);
     arrLayout->setAlignment(Qt::AlignCenter);
 
-    mainLayout->addWidget(flightIdLabel); // Add Flight ID
+    mainLayout->addLayout(idLayout); // Flight ID + date
     mainLayout->addStretch();
     mainLayout->addLayout(depLayout);
     mainLayout->addLayout(midLayout);
@@ -94,19 +103,19 @@ void FlightCard::setupUI() {
     QWidget *bottomWidget = new QWidget(this);
     bottomWidget->setObjectName("InfoContainer");
     QHBoxLayout *bottomLayout = new QHBoxLayout(bottomWidget);
-    bottomLayout->setContentsMargins(20, 12, 20, 12);
-    bottomLayout->setSpacing(15);
+    bottomLayout->setContentsMargins(24, 14, 24, 14);
+    bottomLayout->setSpacing(18);
 
     QLabel *price = new QLabel(QString("¥%1").arg(m_flight.price), this);
     price->setObjectName("PriceLabel");
     
-    QLabel *seats = new QLabel(QString("剩余 %1 座").arg(m_flight.rest_seats), this);
-    seats->setObjectName("SeatsLabel");
+    QLabel *seats = new QLabel(QString("💺 剩余 %1 座").arg(m_flight.rest_seats), this);
+    seats->setObjectName(m_flight.rest_seats <= 10 ? "SeatsLabelLow" : "SeatsLabel");
 
     QPushButton *bookBtn = new QPushButton("立即预订", this);
     bookBtn->setObjectName("BookBtn");
-    bookBtn->setMinimumWidth(130);
-    bookBtn->setFixedHeight(40);
+    bookBtn->setMinimumWidth(140);
+    bookBtn->setFixedHeight(42);
     bookBtn->setCursor(Qt::PointingHandCursor);
     connect(bookBtn, &QPushButton::clicked, this, [this](){ emit bookRequested(m_flight); });
 

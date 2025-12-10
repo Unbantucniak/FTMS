@@ -42,12 +42,16 @@ private:
     // QLabel *m_memberSinceLabel;
     
     // 安全设置
+    QWidget *m_passwordFieldsWidget;
     QLineEdit *m_oldPasswordEdit;
     QLineEdit *m_newPasswordEdit;
     QLineEdit *m_confirmPasswordEdit;
     QPushButton *m_changePassBtn;
+    QPushButton *m_submitPassBtn;
+    QPushButton *m_cancelPassBtn;
     
     bool m_isEditing = false;
+    bool m_isPasswordExpanded = false;
     bool m_isDarkTheme = true;
     User m_currentUser;
 };

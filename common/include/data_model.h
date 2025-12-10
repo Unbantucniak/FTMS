@@ -19,7 +19,9 @@ enum RequestType {
     ChangeTicketRequest,    // 改签请求
     CheckUsernameRequest,   // 检查用户名请求
     GetCitiesRequest,       // 获取城市列表请求
-    GetOccupiedSeatsRequest // 获取已占座位请求
+    GetOccupiedSeatsRequest,// 获取已占座位请求
+    AIChatRequest,          // AI对话请求
+    ChangePasswordRequest   // 修改密码请求
 };
 
 // 响应结果
