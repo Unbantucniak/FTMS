@@ -5,7 +5,8 @@
 ## 开发环境
 - Qt 6.9.3 (含 Core/Gui/Widgets/Network/Sql) + MinGW 64-bit 或等价工具链
 - CMake ≥ 3.26，推荐 Ninja 作为生成器
-- MySQL/MariaDB 10.x+（本地开发建议启用本机实例）
+- SQLite (Qt 内置 QSQLITE 驱动，无需额外安装)
+- Python 3.7+ (用于运行 `tools/generate_flights.py`)
 - 可选：clang-format 16（若后续引入格式化钩子）
 
 ## 分支 & 提交流程
@@ -29,11 +30,12 @@
 ## 必跑检查
 | 模块 | 命令 |
 | ---- | ---- |
-| 前端 Qt 客户端 | `cmake -S frontend -B build/frontend` & `cmake --build build/frontend` |
-| 后端 Qt 服务 | `cmake -S backend -B build/backend` & `cmake --build build/backend` |
-| 集成构建 | `cmake -S . -B build` & `cmake --build build` |
-| 数据库脚本 | 确保 `init_flights.sql` 可在空库执行通过 |
-| 自动化测试 | 若添加测试，请补充 `ctest --output-on-failure` 结果 |
+| 集成构建 | `cmake -S . -B build && cmake --build build` |
+| 前端单独构建 | `cmake --build build --target QtDesktopClient` |
+| 后端单独构建 | `cmake --build build --target QtBackendServer` |
+| 数据库表结构 | 删除 `ftms.db` 后运行后端，确保表自动创建成功 |
+| 航班数据导入 | `python tools/generate_flights.py` 确保无报错 |
+| 功能测试 | 运行前后端，测试登录、搜索、订票、退票流程 |
 
 ## 代码风格
 - C++ 17，保持头/源拆分，公共模型放在 `common/include`。
@@ -42,8 +44,10 @@
 - UI 代码需加简短注释说明布局意图；CSS/QSS 建议集中在 `main_window.cpp`。
 
 ## 数据与配置
-- 不要提交真实数据库密码、API Key，可放入 `.env` 或 `*.template.json`。
-- 若迁移脚本或配置有更新，请同步 README 及示例文件。
+- **不要提交 `ftms.db` 文件**：数据库文件在 `.gitignore` 中，避免提交测试数据。
+- **Python 工具依赖**：若修改 `generate_flights.py`，确保兼容 Python 3.7+，无需外部依赖库。
+- **座位数规范**：新增航班时，座位数必须是 6 的倍数，以适配前端 A-F 座位布局。
+- **SQL 兼容性**：使用 SQLite 语法，注意 `datetime('now','localtime')` 而非 `NOW()`。
 
 ## Issue & PR
 - Issue 模板建议包含：环境、复现步骤、期望/实际结果、日志截图。
