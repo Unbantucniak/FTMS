@@ -13,11 +13,8 @@ class DBManager {
 public:
     static DBManager* getInstance();
 
-    bool init(const QString& host = "localhost",
-              int port = 3306,
-              const QString& dbName = "FTMSDB",
-              const QString& user = "root",
-              const QString& pwd = "114514");
+    // SQLite 初始化：只需要数据库文件路径
+    bool init(const QString& dbPath = "ftms.db");
 
     ResponseStatus verifyUser(const QString& username, const QString& password);
 
@@ -49,6 +46,9 @@ private:
     DBManager();
     DBManager(const DBManager&) = delete;
     DBManager& operator=(const DBManager&) = delete;
+
+    // 创建数据库表结构
+    bool createTables();
 
     QSqlDatabase m_db;
     static DBManager* m_instance;

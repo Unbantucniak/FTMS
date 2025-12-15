@@ -12,7 +12,10 @@ SeatSelectionDialog::SeatSelectionDialog(const QString& flightId, const QStringL
                                           int totalSeats, QWidget *parent)
     : QDialog(parent), m_flightId(flightId), m_occupiedSeats(occupiedSeats), m_totalSeats(totalSeats)
 {
-    m_rows = qCeil(totalSeats / 6.0);
+    // 将座位数向上取整到6的倍数，确保每排完整显示
+    int adjustedSeats = ((totalSeats + 5) / 6) * 6;
+    m_totalSeats = adjustedSeats;
+    m_rows = adjustedSeats / 6;
     if (m_rows < 1) m_rows = 1;
     if (m_rows > 50) m_rows = 50;
     

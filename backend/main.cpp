@@ -14,15 +14,12 @@ int main(int argc, char *argv[]) {
 
     qDebug() << "\n=== 启动后端服务器 ===";
 
-    // 初始化数据库
-    bool dbConnected = DBManager::getInstance()->init(
-        "localhost", 3306, "FTMSDB", "root", "114514"
-    );
+    // 初始化 SQLite 数据库（自动创建表结构和示例数据）
+    bool dbConnected = DBManager::getInstance()->init("ftms.db");
     if (!dbConnected) {
-        qCritical() << "数据库连接失败，程序退出！";
+        qCritical() << "数据库初始化失败，程序退出！";
         return -1;
     }
-    qDebug() << "数据库连接成功！";
 
     // 启动TCP服务器
     TcpServer server;
