@@ -10,6 +10,8 @@
 #include <QFrame>
 #include <QTimer>
 #include <QPropertyAnimation>
+#include <QCalendarWidget>
+#include <QLineEdit>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),
@@ -60,7 +62,7 @@ void MainWindow::setupUI()
     m_profilePage = new ProfilePage();
     m_stack->addWidget(m_profilePage);
     
-    // 智能客服页
+    // 出行助手页
     m_chatWidget = new ChatWidget();
     m_stack->addWidget(m_chatWidget);
 
@@ -125,7 +127,7 @@ void MainWindow::setupSidebar()
     m_profileBtn = createNavBtn("👤", "个人中心");
     sidebarLayout->addWidget(m_profileBtn);
 
-    m_chatBtn = createNavBtn("🤖", "智能客服");
+    m_chatBtn = createNavBtn("🤖", "出行助手");
     sidebarLayout->addWidget(m_chatBtn);
     
     sidebarLayout->addStretch();
@@ -239,6 +241,23 @@ void MainWindow::setupFlightPage()
     m_dateEdit->setDisplayFormat("yyyy年MM月dd日 ddd");
     m_dateEdit->setMinimumHeight(52);
     m_dateEdit->setMinimumWidth(200);
+    m_dateEdit->setButtonSymbols(QAbstractSpinBox::NoButtons);  // 隐藏上下按钮
+    m_dateEdit->setKeyboardTracking(false);  // 禁用键盘追踪
+    m_dateEdit->setCursor(Qt::PointingHandCursor);
+    m_dateEdit->setFocusPolicy(Qt::ClickFocus);  // 仅点击获取焦点
+    
+    // 禁用键盘输入，只能通过日历选择
+    if (auto *le = m_dateEdit->findChild<QLineEdit*>()) {
+        le->setReadOnly(true);
+        le->setCursor(Qt::PointingHandCursor);
+    }
+    
+    // 自定义日历控件
+    QCalendarWidget *calendar = m_dateEdit->calendarWidget();
+    calendar->setVerticalHeaderFormat(QCalendarWidget::NoVerticalHeader);  // 隐藏周数
+    calendar->setHorizontalHeaderFormat(QCalendarWidget::ShortDayNames);   // 短星期名
+    calendar->setGridVisible(false);  // 隐藏网格线
+    calendar->setMinimumSize(350, 300);  // 更大的日历
     dateLayout->addWidget(dateLabel);
     dateLayout->addWidget(m_dateEdit);
     inputLayout->addLayout(dateLayout);
@@ -550,14 +569,6 @@ void MainWindow::onOccupiedSeatsReceived(const QStringList& seats)
     m_pendingFlightId.clear();
 }
 
-/* openChat removed - integrated
-void MainWindow::openChat()
-{
-    ChatDialog *dialog = new ChatDialog(this);
-    dialog->setAttribute(Qt::WA_DeleteOnClose);
-    dialog->show();
-}
-*/
 
 void MainWindow::setUsername(const QString& username)
 {
@@ -730,10 +741,15 @@ void MainWindow::applyTheme()
             background-color: #0f172a;
             border: 2px solid #334155;
             border-radius: 12px;
-            padding: 12px 16px;
+            padding: 12px 20px;
             font-size: 15px;
             color: #f1f5f9;
             font-weight: 500;
+        }
+        
+        QDateEdit#DateEdit:hover {
+            border-color: #475569;
+            background-color: #1e293b;
         }
         
         QDateEdit#DateEdit:focus {
@@ -743,66 +759,125 @@ void MainWindow::applyTheme()
         
         QDateEdit#DateEdit::drop-down {
             border: none;
-            width: 36px;
+            width: 40px;
             subcontrol-origin: padding;
             subcontrol-position: right center;
-        }
-        
-        QDateEdit#DateEdit::down-arrow {
-            width: 16px;
-            height: 16px;
+            background: transparent;
         }
         
         /* 日历弹出框样式 */
         QCalendarWidget {
             background-color: #1e293b;
-            border: 1px solid #334155;
-            border-radius: 12px;
+            border: 2px solid #334155;
+            border-radius: 16px;
+        }
+        
+        QCalendarWidget QWidget#qt_calendar_navigationbar {
+            background-color: #0f172a;
+            border-top-left-radius: 14px;
+            border-top-right-radius: 14px;
+            padding: 12px 16px;
+            min-height: 50px;
         }
         
         QCalendarWidget QToolButton {
             color: #f1f5f9;
             background-color: transparent;
             border: none;
-            border-radius: 6px;
-            padding: 6px 12px;
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 14px;
             font-weight: bold;
+            margin: 2px;
         }
         
         QCalendarWidget QToolButton:hover {
             background-color: #334155;
         }
         
+        QCalendarWidget QToolButton:pressed {
+            background-color: #3b82f6;
+        }
+        
+        QCalendarWidget QToolButton#qt_calendar_prevmonth,
+        QCalendarWidget QToolButton#qt_calendar_nextmonth {
+            min-width: 36px;
+            min-height: 36px;
+            border-radius: 18px;
+            font-size: 18px;
+        }
+        
         QCalendarWidget QMenu {
             background-color: #1e293b;
             border: 1px solid #334155;
+            border-radius: 8px;
             color: #f1f5f9;
+            padding: 4px;
+        }
+        
+        QCalendarWidget QMenu::item {
+            padding: 8px 20px;
+            border-radius: 4px;
+        }
+        
+        QCalendarWidget QMenu::item:selected {
+            background-color: #3b82f6;
         }
         
         QCalendarWidget QSpinBox {
             background-color: #0f172a;
             border: 1px solid #334155;
-            border-radius: 6px;
+            border-radius: 8px;
             color: #f1f5f9;
-            padding: 4px;
+            padding: 6px 12px;
+            font-size: 14px;
+            font-weight: bold;
+            min-width: 80px;
         }
         
-        QCalendarWidget QWidget#qt_calendar_navigationbar {
-            background-color: #0f172a;
-            border-bottom: 1px solid #334155;
-            padding: 8px;
+        QCalendarWidget QSpinBox::up-button,
+        QCalendarWidget QSpinBox::down-button {
+            width: 20px;
+            border: none;
+            background: transparent;
         }
+        
+        /* 星期标题 */
+        QCalendarWidget QWidget { alternate-background-color: #1e293b; }
         
         QCalendarWidget QAbstractItemView:enabled {
             background-color: #1e293b;
-            color: #f1f5f9;
-            selection-background-color: #3b82f6;
+            color: #e2e8f0;
+            selection-background-color: transparent;
             selection-color: white;
             outline: none;
+            font-size: 14px;
         }
         
         QCalendarWidget QAbstractItemView:disabled {
-            color: #64748b;
+            color: #475569;
+        }
+        
+        QCalendarWidget QTableView {
+            border: none;
+            border-bottom-left-radius: 14px;
+            border-bottom-right-radius: 14px;
+            padding: 8px;
+        }
+        
+        QCalendarWidget QTableView::item {
+            padding: 0px;
+        }
+        
+        QCalendarWidget QTableView::item:selected {
+            background-color: #3b82f6;
+            border-radius: 20px;
+            color: white;
+        }
+        
+        QCalendarWidget QTableView::item:hover {
+            background-color: #334155;
+            border-radius: 20px;
         }
         
         QPushButton#SwapBtn {
@@ -1110,10 +1185,15 @@ void MainWindow::applyTheme()
             background-color: #ffffff;
             border: 2px solid #e2e8f0;
             border-radius: 12px;
-            padding: 12px 16px;
+            padding: 12px 20px;
             font-size: 15px;
             color: #1e293b;
             font-weight: 500;
+        }
+        
+        QDateEdit#DateEdit:hover {
+            border-color: #cbd5e1;
+            background-color: #f8fafc;
         }
         
         QDateEdit#DateEdit:focus {
@@ -1123,66 +1203,127 @@ void MainWindow::applyTheme()
         
         QDateEdit#DateEdit::drop-down {
             border: none;
-            width: 36px;
+            width: 40px;
             subcontrol-origin: padding;
             subcontrol-position: right center;
-        }
-        
-        QDateEdit#DateEdit::down-arrow {
-            width: 16px;
-            height: 16px;
+            background: transparent;
         }
         
         /* 日历弹出框样式 */
         QCalendarWidget {
             background-color: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+        }
+        
+        QCalendarWidget QWidget#qt_calendar_navigationbar {
+            background-color: #f8fafc;
+            border-top-left-radius: 14px;
+            border-top-right-radius: 14px;
+            padding: 12px 16px;
+            min-height: 50px;
         }
         
         QCalendarWidget QToolButton {
             color: #1e293b;
             background-color: transparent;
             border: none;
-            border-radius: 6px;
-            padding: 6px 12px;
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 14px;
             font-weight: bold;
+            margin: 2px;
         }
         
         QCalendarWidget QToolButton:hover {
-            background-color: #f1f5f9;
+            background-color: #e2e8f0;
+        }
+        
+        QCalendarWidget QToolButton:pressed {
+            background-color: #3b82f6;
+            color: white;
+        }
+        
+        QCalendarWidget QToolButton#qt_calendar_prevmonth,
+        QCalendarWidget QToolButton#qt_calendar_nextmonth {
+            min-width: 36px;
+            min-height: 36px;
+            border-radius: 18px;
+            font-size: 18px;
         }
         
         QCalendarWidget QMenu {
             background-color: #ffffff;
             border: 1px solid #e2e8f0;
-            color: #1e293b;
-        }
-        
-        QCalendarWidget QSpinBox {
-            background-color: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
+            border-radius: 8px;
             color: #1e293b;
             padding: 4px;
         }
         
-        QCalendarWidget QWidget#qt_calendar_navigationbar {
-            background-color: #f8fafc;
-            border-bottom: 1px solid #e2e8f0;
-            padding: 8px;
+        QCalendarWidget QMenu::item {
+            padding: 8px 20px;
+            border-radius: 4px;
         }
+        
+        QCalendarWidget QMenu::item:selected {
+            background-color: #3b82f6;
+            color: white;
+        }
+        
+        QCalendarWidget QSpinBox {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            color: #1e293b;
+            padding: 6px 12px;
+            font-size: 14px;
+            font-weight: bold;
+            min-width: 80px;
+        }
+        
+        QCalendarWidget QSpinBox::up-button,
+        QCalendarWidget QSpinBox::down-button {
+            width: 20px;
+            border: none;
+            background: transparent;
+        }
+        
+        /* 星期标题 */
+        QCalendarWidget QWidget { alternate-background-color: #ffffff; }
         
         QCalendarWidget QAbstractItemView:enabled {
             background-color: #ffffff;
             color: #1e293b;
-            selection-background-color: #3b82f6;
+            selection-background-color: transparent;
             selection-color: white;
             outline: none;
+            font-size: 14px;
         }
         
         QCalendarWidget QAbstractItemView:disabled {
             color: #94a3b8;
+        }
+        
+        QCalendarWidget QTableView {
+            border: none;
+            border-bottom-left-radius: 14px;
+            border-bottom-right-radius: 14px;
+            padding: 8px;
+        }
+        
+        QCalendarWidget QTableView::item {
+            padding: 0px;
+        }
+        
+        QCalendarWidget QTableView::item:selected {
+            background-color: #3b82f6;
+            border-radius: 20px;
+            color: white;
+        }
+        
+        QCalendarWidget QTableView::item:hover {
+            background-color: #f1f5f9;
+            border-radius: 20px;
         }
         
         QPushButton#SwapBtn {

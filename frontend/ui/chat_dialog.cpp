@@ -18,7 +18,7 @@ ChatWidget::ChatWidget(QWidget *parent) : QWidget(parent)
     connect(TcpClient::getInstance(), &TcpClient::aiChatResult, this, &ChatWidget::onAIResponse);
     
     // 欢迎消息
-    addMessage("您好！我是您的智能客服，有什么可以帮您的吗？", false);
+    addMessage("您好！我是您的出行助手，有什么可以帮您的吗？", false);
 }
 
 void ChatWidget::buildUI()
@@ -37,7 +37,7 @@ void ChatWidget::buildUI()
     auto *topLayout = new QHBoxLayout(topBar);
     topLayout->setContentsMargins(24, 0, 24, 0);
     
-    m_titleLabel = new QLabel("智能客服", this);
+    m_titleLabel = new QLabel("出行助手", this);
     m_titleLabel->setObjectName("TitleLabel");
     
     topLayout->addWidget(m_titleLabel);
@@ -75,7 +75,7 @@ void ChatWidget::buildUI()
     m_inputEdit->setObjectName("InputEdit");
     m_inputEdit->setPlaceholderText("输入消息，Ctrl+Enter 发送...");
     m_inputEdit->setFixedHeight(80);
-    m_inputEdit->installEventFilter(this);
+    m_inputEdit->installEventFilter(this);  // 安装事件过滤器以捕获快捷键
     
     m_sendBtn = new QPushButton("发送", this);
     m_sendBtn->setObjectName("SendBtn");
@@ -304,6 +304,7 @@ void ChatWidget::addMessage(const QString &text, bool fromUser)
 {
     const ChatTheme &t = m_currentTheme;
     
+    // 创建消息行容器
     auto *row = new QWidget();
     row->setObjectName(fromUser ? "UserMessageRow" : "AIMessageRow");
     
@@ -311,7 +312,7 @@ void ChatWidget::addMessage(const QString &text, bool fromUser)
     rowLayout->setContentsMargins(0, 0, 0, 0);
     rowLayout->setSpacing(12);
     
-    // 气泡容器（AI消息更宽以适配内容）
+    // 创建气泡容器（AI消息更宽以适配内容）
     auto *bubble = new QFrame();
     bubble->setObjectName(fromUser ? "UserBubble" : "AIBubble");
     int maxBubbleWidth = fromUser ? 500 : qMax(600, static_cast<int>(this->width() * 0.75));
@@ -321,21 +322,21 @@ void ChatWidget::addMessage(const QString &text, bool fromUser)
     bubbleLayout->setContentsMargins(16, 12, 16, 12);
     bubbleLayout->setSpacing(0);
     
-    // 消息文本
+    // 创建消息文本标签
     auto *msgLabel = new QLabel();
-    msgLabel->setWordWrap(true);
-    msgLabel->setTextFormat(Qt::PlainText);
+    msgLabel->setWordWrap(true);               // 自动换行
+    msgLabel->setTextFormat(Qt::PlainText);    // 纯文本格式
     msgLabel->setText(text);
-    msgLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    msgLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);  // 允许鼠标选择文本
     
     bubbleLayout->addWidget(msgLabel);
     
-    // 样式
+    // 根据消息来源设置不同样式
     QString bubbleStyle;
     QString textStyle;
     
     if (fromUser) {
-        // 用户消息：右侧，蓝色渐变背景
+        // 用户消息：右对齐，蓝色渐变背景
         bubbleStyle = QString(
             "QFrame#UserBubble {"
             "   background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 %1, stop:1 %2);"
@@ -354,10 +355,10 @@ void ChatWidget::addMessage(const QString &text, bool fromUser)
             "}"
         );
         
-        rowLayout->addStretch();
+        rowLayout->addStretch();  // 左侧弹性空间，使气泡靠右
         rowLayout->addWidget(bubble);
     } else {
-        // AI消息：左侧，中性背景
+        // AI消息：左对齐，中性背景色
         bubbleStyle = QString(
             "QFrame#AIBubble {"
             "   background: %1;"
@@ -378,22 +379,24 @@ void ChatWidget::addMessage(const QString &text, bool fromUser)
         ).arg(t.text);
         
         rowLayout->addWidget(bubble);
-        rowLayout->addStretch();
+        rowLayout->addStretch();  // 右侧弹性空间，使气泡靠左
     }
     
+    // 应用样式
     bubble->setStyleSheet(bubbleStyle);
     msgLabel->setStyleSheet(textStyle);
     
-    // 插入到消息布局（在 stretch 之前）
+    // 插入到消息布局（在底部 stretch 之前，保持消息从底部向上堆叠）
     int insertIndex = m_messagesLayout->count() - 1;
     m_messagesLayout->insertWidget(insertIndex, row);
     
-    // 滚动到底部
+    // 滚动到底部显示最新消息
     scrollToBottom();
 }
 
 void ChatWidget::scrollToBottom()
 {
+    // 延迟执行，确保布局更新完成后再滚动
     QTimer::singleShot(10, this, [this]() {
         QScrollBar *vbar = m_scrollArea->verticalScrollBar();
         vbar->setValue(vbar->maximum());
@@ -405,24 +408,29 @@ void ChatWidget::onSendClicked()
     QString text = m_inputEdit->toPlainText().trimmed();
     if (text.isEmpty()) return;
     
+    // 添加用户消息到界面
     addMessage(text, true);
     m_inputEdit->clear();
     
+    // 禁用输入控件，显示等待状态
     m_sendBtn->setEnabled(false);
     m_inputEdit->setEnabled(false);
     m_statusLabel->setText("AI 正在思考...");
     m_statusLabel->show();
     
+    // 发送消息到服务器
     TcpClient::getInstance()->sendAIChatMessage(m_username, text);
 }
 
 void ChatWidget::onAIResponse(bool success, const QString &response)
 {
+    // 恢复输入控件状态
     m_sendBtn->setEnabled(true);
     m_inputEdit->setEnabled(true);
     m_inputEdit->setFocus();
     m_statusLabel->hide();
     
+    // 显示AI回复或错误信息
     if (success) {
         addMessage(response, false);
     } else {
@@ -432,12 +440,13 @@ void ChatWidget::onAIResponse(bool success, const QString &response)
 
 bool ChatWidget::eventFilter(QObject *obj, QEvent *event)
 {
+    // 捕获输入框的键盘事件，实现 Ctrl+Enter 发送
     if (obj == m_inputEdit && event->type() == QEvent::KeyPress) {
         auto *keyEvent = static_cast<QKeyEvent*>(event);
         if ((keyEvent->key() == Qt::Key_Return || keyEvent->key() == Qt::Key_Enter) 
             && (keyEvent->modifiers() & Qt::ControlModifier)) {
             onSendClicked();
-            return true;
+            return true;  // 事件已处理，不再传递
         }
     }
     return QWidget::eventFilter(obj, event);
@@ -445,7 +454,7 @@ bool ChatWidget::eventFilter(QObject *obj, QEvent *event)
 
 bool ChatWidget::event(QEvent *e)
 {
-    // 监听系统主题变化
+    // 监听系统主题变化，自动切换明暗主题
     if (e->type() == QEvent::ApplicationPaletteChange) {
         bool sysDark = detectSystemDark();
         if (sysDark != m_isDark) {
