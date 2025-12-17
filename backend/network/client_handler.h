@@ -41,8 +41,13 @@ private:
     void handleChangePasswordRequest(const QByteArray& data);
 
     void sendResponse(ResponseStatus status, const QByteArray& data = QByteArray());
+    void processPacket(const QByteArray& packet);
     
     class AIManager* m_aiManager = nullptr;
+    
+    // 用于处理 TCP 粘包/拆包
+    QByteArray m_recvBuffer;
+    quint32 m_expectedSize = 0;
 };
 
 #endif // CLIENT_HANDLER_H

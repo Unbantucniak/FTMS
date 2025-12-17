@@ -39,8 +39,8 @@ enum ResponseStatus {
 struct User {
     QString username;       // 用户名
     QString password;       // 密码
-    QString real_name;      // 真实姓名（可选）
-    QString phone;          // 联系方式（新增）
+    QString real_name;      // 真实姓名
+    QString phone;          // 联系方式
 
     friend QDataStream& operator<<(QDataStream& out, const User& user) {
         out << user.username << user.password << user.real_name << user.phone;
@@ -52,7 +52,7 @@ struct User {
     }
 };
 
-// 航班结构体（修改字段名，与数据库新字段一致）
+// 航班结构体
 struct Flight {
     QString flight_id;      // 航班号
     QString departure;      // 出发地
@@ -88,7 +88,7 @@ struct Order {
     QDateTime book_time;    // 订票时间
     QString seat_number;    // 座位号
     
-    // 扩展字段：行程信息
+    // 行程信息
     QString departure;
     QString destination;
     QString departure_airport;

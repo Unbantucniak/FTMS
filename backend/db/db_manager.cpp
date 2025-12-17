@@ -4,6 +4,8 @@
 #include <QDateTime>
 #include <QCoreApplication>
 #include <QFileInfo>
+#include <QMutexLocker>
+#include <QThread>
 
 DBManager* DBManager::m_instance = nullptr;
 
@@ -18,21 +20,19 @@ DBManager::DBManager() {}
 
 // ==================== SQLite 初始化 ====================
 bool DBManager::init(const QString& dbPath) {
-    if (m_db.isOpen()) return true;
+    m_dbPath = dbPath;
 
-    // 使用 SQLite 驱动（Qt 内置，无需额外安装）
-    m_db = QSqlDatabase::addDatabase("QSQLITE");
-    m_db.setDatabaseName(dbPath);
-
-    if (!m_db.open()) {
-        qDebug() << "❌ SQLite 数据库打开失败：" << m_db.lastError().text();
+    // 创建当前线程的连接用于初始化
+    QSqlDatabase db = getDb();
+    if (!db.isOpen()) {
+        qDebug() << "❌ SQLite 数据库打开失败：" << db.lastError().text();
         return false;
     }
 
     qDebug() << "✅ SQLite 数据库连接成功：" << QFileInfo(dbPath).absoluteFilePath();
 
     // 启用外键约束
-    QSqlQuery query(m_db);
+    QSqlQuery query(db);
     query.exec("PRAGMA foreign_keys = ON;");
 
     // 创建表结构（如果不存在）
@@ -44,9 +44,32 @@ bool DBManager::init(const QString& dbPath) {
     return true;
 }
 
-// ==================== 创建表结构 ====================
+QSqlDatabase DBManager::getDb() {
+    QMutexLocker locker(&m_mutex);
+    const Qt::HANDLE tid = QThread::currentThreadId();
+
+    if (!m_connectionNames.contains(tid)) {
+        QString connName = QString("ftms_conn_%1").arg(reinterpret_cast<quintptr>(tid));
+        QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", connName);
+        db.setDatabaseName(m_dbPath);
+        if (!db.open()) {
+            qDebug() << "❌ 无法打开 SQLite 连接" << connName << db.lastError().text();
+        }
+        m_connectionNames.insert(tid, connName);
+    }
+
+    const QString name = m_connectionNames.value(tid);
+    QSqlDatabase db = QSqlDatabase::database(name);
+    if (!db.isOpen()) {
+        db.setDatabaseName(m_dbPath);
+        db.open();
+    }
+    return db;
+}
+
 bool DBManager::createTables() {
-    QSqlQuery query(m_db);
+    QSqlDatabase db = getDb();
+    QSqlQuery query(db);
 
     // 用户表
     QString createUserTable = R"(
@@ -113,11 +136,12 @@ bool DBManager::createTables() {
     return true;
 }
 
-// ==================== 用户相关 ====================
+//User
 bool DBManager::registerUser(const User& user) {
-    if (!m_db.isOpen()) return false;
+    QSqlDatabase db = getDb();
+    if (!db.isOpen()) return false;
 
-    QSqlQuery query(m_db);
+    QSqlQuery query(db);
     query.prepare("SELECT username FROM user WHERE username = :username");
     query.bindValue(":username", user.username);
     if (query.exec() && query.next()) {
@@ -134,9 +158,10 @@ bool DBManager::registerUser(const User& user) {
 }
 
 ResponseStatus DBManager::verifyUser(const QString& username, const QString& password) {
-    if (!m_db.isOpen()) return Failed;
+    QSqlDatabase db = getDb();
+    if (!db.isOpen()) return Failed;
 
-    QSqlQuery query(m_db);
+    QSqlQuery query(db);
     query.prepare("SELECT password FROM user WHERE username = :username");
     query.bindValue(":username", username);
 
@@ -150,9 +175,10 @@ ResponseStatus DBManager::verifyUser(const QString& username, const QString& pas
 
 User DBManager::getUserInfo(const QString& username) {
     User user;
-    if (!m_db.isOpen()) return user;
+    QSqlDatabase db = getDb();
+    if (!db.isOpen()) return user;
 
-    QSqlQuery query(m_db);
+    QSqlQuery query(db);
     query.prepare("SELECT username, password, real_name, phone FROM user WHERE username = :username");
     query.bindValue(":username", username);
 
@@ -166,9 +192,10 @@ User DBManager::getUserInfo(const QString& username) {
 }
 
 bool DBManager::updateUserInfo(const User& user) {
-    if (!m_db.isOpen()) return false;
+    QSqlDatabase db = getDb();
+    if (!db.isOpen()) return false;
 
-    QSqlQuery query(m_db);
+    QSqlQuery query(db);
     query.prepare("UPDATE user SET phone = :phone WHERE username = :username");
     query.bindValue(":phone", user.phone);
     query.bindValue(":username", user.username);
@@ -177,9 +204,10 @@ bool DBManager::updateUserInfo(const User& user) {
 }
 
 bool DBManager::changePassword(const QString& username, const QString& oldPass, const QString& newPass) {
-    if (!m_db.isOpen()) return false;
+    QSqlDatabase db = getDb();
+    if (!db.isOpen()) return false;
 
-    QSqlQuery query(m_db);
+    QSqlQuery query(db);
     
     // 验证旧密码
     query.prepare("SELECT password FROM user WHERE username = :username");
@@ -208,9 +236,10 @@ bool DBManager::changePassword(const QString& username, const QString& oldPass, 
 }
 
 bool DBManager::isUserExist(const QString& username) {
-    if (!m_db.isOpen()) return false;
+    QSqlDatabase db = getDb();
+    if (!db.isOpen()) return false;
     
-    QSqlQuery query(m_db);
+    QSqlQuery query(db);
     query.prepare("SELECT COUNT(*) FROM user WHERE username = :username");
     query.bindValue(":username", username);
     
@@ -220,10 +249,11 @@ bool DBManager::isUserExist(const QString& username) {
     return false;
 }
 
-// ==================== 航班查询 ====================
+//Query Flights
 QList<Flight> DBManager::queryFlights(const QString& departure, const QString& destination, const QDate& date) {
     QList<Flight> flights;
-    if (!m_db.isOpen()) return flights;
+    QSqlDatabase db = getDb();
+    if (!db.isOpen()) return flights;
 
     QString sql = "SELECT flight_id, departure, destination, departure_airport, arrival_airport, "
                   "depart_time, arrive_time, price, rest_seats FROM flight WHERE rest_seats > 0";
@@ -233,7 +263,7 @@ QList<Flight> DBManager::queryFlights(const QString& departure, const QString& d
     if (date.isValid())         sql += " AND DATE(depart_time) = :date";
     sql += " ORDER BY depart_time ASC";
 
-    QSqlQuery query(m_db);
+    QSqlQuery query(db);
     query.prepare(sql);
     if (!departure.isEmpty())   query.bindValue(":departure", "%" + departure + "%");
     if (!destination.isEmpty()) query.bindValue(":destination", "%" + destination + "%");
@@ -259,10 +289,10 @@ QList<Flight> DBManager::queryFlights(const QString& departure, const QString& d
 
 QList<Flight> DBManager::getAllFlights(int limit) {
     QList<Flight> flights;
-    if (!m_db.isOpen()) return flights;
+    QSqlDatabase db = getDb();
+    if (!db.isOpen()) return flights;
 
-    QSqlQuery query(m_db);
-    // SQLite 使用 datetime('now') 代替 NOW()
+    QSqlQuery query(db);
     query.prepare(QString("SELECT flight_id, departure, destination, departure_airport, arrival_airport, "
                   "depart_time, arrive_time, price, rest_seats FROM flight "
                   "WHERE depart_time > datetime('now', 'localtime') ORDER BY depart_time ASC LIMIT %1").arg(limit));
@@ -287,9 +317,10 @@ QList<Flight> DBManager::getAllFlights(int limit) {
 
 QStringList DBManager::getCities() {
     QStringList cities;
-    if (!m_db.isOpen()) return cities;
+    QSqlDatabase db = getDb();
+    if (!db.isOpen()) return cities;
 
-    QSqlQuery query(m_db);
+    QSqlQuery query(db);
     query.exec("SELECT DISTINCT departure FROM flight UNION SELECT DISTINCT destination FROM flight ORDER BY 1");
     while (query.next()) {
         cities.append(query.value(0).toString());
@@ -298,9 +329,10 @@ QStringList DBManager::getCities() {
 }
 
 int DBManager::getRestSeats(const QString& flight_id) {
-    if (!m_db.isOpen()) return -2;
+    QSqlDatabase db = getDb();
+    if (!db.isOpen()) return -2;
 
-    QSqlQuery query(m_db);
+    QSqlQuery query(db);
     query.prepare("SELECT rest_seats FROM flight WHERE flight_id = :flight_id");
     query.bindValue(":flight_id", flight_id);
     
@@ -311,9 +343,10 @@ int DBManager::getRestSeats(const QString& flight_id) {
 
 QStringList DBManager::getOccupiedSeats(const QString& flightId) {
     QStringList seats;
-    if (!m_db.isOpen()) return seats;
+    QSqlDatabase db = getDb();
+    if (!db.isOpen()) return seats;
 
-    QSqlQuery query(m_db);
+    QSqlQuery query(db);
     query.prepare("SELECT seat_number FROM ticket WHERE flight_id = :flightId");
     query.bindValue(":flightId", flightId);
     
@@ -326,9 +359,10 @@ QStringList DBManager::getOccupiedSeats(const QString& flightId) {
 }
 
 bool DBManager::addFlight(const Flight& flight) {
-    if (!m_db.isOpen()) return false;
+    QSqlDatabase db = getDb();
+    if (!db.isOpen()) return false;
 
-    QSqlQuery query(m_db);
+    QSqlQuery query(db);
     query.prepare("INSERT INTO flight (flight_id, departure, destination, departure_airport, arrival_airport, "
                   "depart_time, arrive_time, price, rest_seats) "
                   "VALUES (:id, :dep, :dest, :dep_airport, :arr_airport, :dtime, :atime, :price, :seats)");
@@ -345,25 +379,24 @@ bool DBManager::addFlight(const Flight& flight) {
     return query.exec();
 }
 
-// ==================== 订票相关 ====================
 QString DBManager::bookTicket(const QString& username, const QString& flight_id) {
-    if (!m_db.isOpen()) return "";
+    QSqlDatabase db = getDb();
+    if (!db.isOpen()) return "";
     
-    m_db.transaction();
+    db.transaction();
 
-    QSqlQuery query(m_db);
+    QSqlQuery query(db);
     
-    // 检查余票（SQLite 不支持 FOR UPDATE，但单线程访问问题不大）
     query.prepare("SELECT rest_seats FROM flight WHERE flight_id = :flight_id");
     query.bindValue(":flight_id", flight_id);
     if (!query.exec() || !query.next()) {
-        m_db.rollback();
+        db.rollback();
         return "";
     }
 
     int remaining = query.value(0).toInt();
     if (remaining <= 0) {
-        m_db.rollback();
+        db.rollback();
         return "";
     }
 
@@ -384,7 +417,7 @@ QString DBManager::bookTicket(const QString& username, const QString& flight_id)
     query.bindValue(":seat_number", seatNumber);
     
     if (!query.exec()) {
-        m_db.rollback();
+        db.rollback();
         return "";
     }
 
@@ -392,26 +425,27 @@ QString DBManager::bookTicket(const QString& username, const QString& flight_id)
     query.prepare("UPDATE flight SET rest_seats = rest_seats - 1 WHERE flight_id = :flight_id");
     query.bindValue(":flight_id", flight_id);
     if (!query.exec()) {
-        m_db.rollback();
+        db.rollback();
         return "";
     }
 
-    m_db.commit();
+    db.commit();
     return orderId;
 }
 
 QString DBManager::bookTicketWithSeat(const QString& username, const QString& flightId, const QString& seatNumber) {
-    if (!m_db.isOpen()) return "";
+    QSqlDatabase db = getDb();
+    if (!db.isOpen()) return "";
     
-    m_db.transaction();
+    db.transaction();
 
-    QSqlQuery query(m_db);
+    QSqlQuery query(db);
     
     // 检查余票
     query.prepare("SELECT rest_seats FROM flight WHERE flight_id = :flightId");
     query.bindValue(":flightId", flightId);
     if (!query.exec() || !query.next() || query.value(0).toInt() <= 0) {
-        m_db.rollback();
+        db.rollback();
         return "";
     }
 
@@ -420,7 +454,7 @@ QString DBManager::bookTicketWithSeat(const QString& username, const QString& fl
     query.bindValue(":flightId", flightId);
     query.bindValue(":seat", seatNumber);
     if (!query.exec() || !query.next() || query.value(0).toInt() > 0) {
-        m_db.rollback();
+        db.rollback();
         return "";
     }
 
@@ -436,26 +470,27 @@ QString DBManager::bookTicketWithSeat(const QString& username, const QString& fl
     query.bindValue(":seat", seatNumber);
     
     if (!query.exec()) {
-        m_db.rollback();
+        db.rollback();
         return "";
     }
 
     query.prepare("UPDATE flight SET rest_seats = rest_seats - 1 WHERE flight_id = :flightId");
     query.bindValue(":flightId", flightId);
     if (!query.exec()) {
-        m_db.rollback();
+        db.rollback();
         return "";
     }
 
-    m_db.commit();
+    db.commit();
     return orderId;
 }
 
 QList<Order> DBManager::queryUserOrders(const QString& username) {
     QList<Order> orders;
-    if (!m_db.isOpen()) return orders;
+    QSqlDatabase db = getDb();
+    if (!db.isOpen()) return orders;
 
-    QSqlQuery query(m_db);
+    QSqlQuery query(db);
     query.prepare("SELECT t.order_id, t.username, t.flight_id, t.book_time, t.seat_number, "
                   "f.departure, f.destination, f.departure_airport, f.arrival_airport, f.depart_time, f.arrive_time "
                   "FROM ticket t "
@@ -485,17 +520,18 @@ QList<Order> DBManager::queryUserOrders(const QString& username) {
 }
 
 bool DBManager::cancelTicket(const QString& orderId) {
-    if (!m_db.isOpen()) return false;
+    QSqlDatabase db = getDb();
+    if (!db.isOpen()) return false;
 
-    m_db.transaction();
+    db.transaction();
 
-    QSqlQuery query(m_db);
+    QSqlQuery query(db);
     
     // 获取航班ID
     query.prepare("SELECT flight_id FROM ticket WHERE order_id = :orderId");
     query.bindValue(":orderId", orderId);
     if (!query.exec() || !query.next()) {
-        m_db.rollback();
+        db.rollback();
         return false;
     }
     QString flightId = query.value(0).toString();
@@ -504,7 +540,7 @@ bool DBManager::cancelTicket(const QString& orderId) {
     query.prepare("DELETE FROM ticket WHERE order_id = :orderId");
     query.bindValue(":orderId", orderId);
     if (!query.exec()) {
-        m_db.rollback();
+        db.rollback();
         return false;
     }
 
@@ -512,26 +548,27 @@ bool DBManager::cancelTicket(const QString& orderId) {
     query.prepare("UPDATE flight SET rest_seats = rest_seats + 1 WHERE flight_id = :flightId");
     query.bindValue(":flightId", flightId);
     if (!query.exec()) {
-        m_db.rollback();
+        db.rollback();
         return false;
     }
 
-    m_db.commit();
+    db.commit();
     return true;
 }
 
 bool DBManager::changeTicket(const QString& orderId, const QString& newFlightId) {
-    if (!m_db.isOpen()) return false;
+    QSqlDatabase db = getDb();
+    if (!db.isOpen()) return false;
 
-    m_db.transaction();
+    db.transaction();
 
-    QSqlQuery query(m_db);
+    QSqlQuery query(db);
     
     // 获取原订单信息
     query.prepare("SELECT username, flight_id FROM ticket WHERE order_id = :orderId");
     query.bindValue(":orderId", orderId);
     if (!query.exec() || !query.next()) {
-        m_db.rollback();
+        db.rollback();
         return false;
     }
     QString username = query.value(0).toString();
@@ -541,7 +578,7 @@ bool DBManager::changeTicket(const QString& orderId, const QString& newFlightId)
     query.prepare("SELECT rest_seats FROM flight WHERE flight_id = :flightId");
     query.bindValue(":flightId", newFlightId);
     if (!query.exec() || !query.next() || query.value(0).toInt() <= 0) {
-        m_db.rollback();
+        db.rollback();
         return false;
     }
 
@@ -549,7 +586,7 @@ bool DBManager::changeTicket(const QString& orderId, const QString& newFlightId)
     query.prepare("DELETE FROM ticket WHERE order_id = :orderId");
     query.bindValue(":orderId", orderId);
     if (!query.exec()) {
-        m_db.rollback();
+        db.rollback();
         return false;
     }
 
@@ -557,7 +594,7 @@ bool DBManager::changeTicket(const QString& orderId, const QString& newFlightId)
     query.prepare("UPDATE flight SET rest_seats = rest_seats + 1 WHERE flight_id = :flightId");
     query.bindValue(":flightId", oldFlightId);
     if (!query.exec()) {
-        m_db.rollback();
+        db.rollback();
         return false;
     }
 
@@ -576,7 +613,7 @@ bool DBManager::changeTicket(const QString& orderId, const QString& newFlightId)
     query.bindValue(":bookTime", bookTime);
     query.bindValue(":seatNumber", seatNumber);
     if (!query.exec()) {
-        m_db.rollback();
+        db.rollback();
         return false;
     }
 
@@ -584,17 +621,24 @@ bool DBManager::changeTicket(const QString& orderId, const QString& newFlightId)
     query.prepare("UPDATE flight SET rest_seats = rest_seats - 1 WHERE flight_id = :flightId");
     query.bindValue(":flightId", newFlightId);
     if (!query.exec()) {
-        m_db.rollback();
+        db.rollback();
         return false;
     }
 
-    m_db.commit();
+    db.commit();
     return true;
 }
 
 void DBManager::close() {
-    if (m_db.isOpen()) {
-        m_db.close();
-        qDebug() << "数据库已关闭";
+    QMutexLocker locker(&m_mutex);
+    for (auto it = m_connectionNames.begin(); it != m_connectionNames.end(); ++it) {
+        const QString name = it.value();
+        if (QSqlDatabase::contains(name)) {
+            QSqlDatabase db = QSqlDatabase::database(name);
+            if (db.isOpen()) db.close();
+            QSqlDatabase::removeDatabase(name);
+        }
     }
+    m_connectionNames.clear();
+    qDebug() << "数据库连接已关闭";
 }

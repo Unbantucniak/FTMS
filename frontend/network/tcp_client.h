@@ -10,8 +10,8 @@ class TcpClient : public QObject
     Q_OBJECT
 public:
     static TcpClient* getInstance();
-    void connectToServer(const QString& ip, int port);
-    void login(const QString& username, const QString& password);
+    void connectToServer(const QString& ip, int port); //连接后端
+    void login(const QString& username, const QString& password); //
     void queryFlights(const QString& departure, const QString& destination, const QDate& date);
     void bookTicket(const QString& username, const QString& flightId, const QString& seatNumber = QString());
     void queryOrders(const QString& username);
@@ -47,9 +47,15 @@ private slots:
 
 private:
     explicit TcpClient(QObject *parent = nullptr);
+    void processResponse(const QByteArray& packet);  // 处理完整数据包
+    
     QTcpSocket *m_socket;
     static TcpClient *m_instance;
     int m_lastRequestType = 0;
+    
+    // 用于处理 TCP 粘包/拆包
+    QByteArray m_recvBuffer;
+    quint32 m_expectedSize = 0;
 };
 
 #endif // TCP_CLIENT_H

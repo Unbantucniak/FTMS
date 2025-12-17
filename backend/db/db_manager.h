@@ -7,6 +7,9 @@
 #include <QDebug>
 #include <QList>
 #include <QDate>
+#include <QMutex>
+#include <QHash>
+#include <QThread>
 #include "data_model.h"
 
 class DBManager {
@@ -50,7 +53,12 @@ private:
     // 创建数据库表结构
     bool createTables();
 
-    QSqlDatabase m_db;
+    // 按线程获取独立的 SQLite 连接（线程安全）
+    QSqlDatabase getDb();
+
+    QString m_dbPath;
+    QHash<Qt::HANDLE, QString> m_connectionNames;
+    QMutex m_mutex;
     static DBManager* m_instance;
 };
 
