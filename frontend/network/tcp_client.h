@@ -47,7 +47,7 @@ private slots:
 
 private:
     explicit TcpClient(QObject *parent = nullptr);
-    void processResponse(const QByteArray& packet);  // 处理完整数据包
+    void processResponse(const QByteArray& packet);  
     
     QTcpSocket *m_socket;
     static TcpClient *m_instance;

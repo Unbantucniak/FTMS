@@ -5,7 +5,6 @@
 AIManager::AIManager(QObject *parent) : QObject(parent)
 {
     m_networkManager = new QNetworkAccessManager(this);
-    //本地部署配置
     m_apiKey = "local";
     m_apiUrl = "http://localhost:11434/v1/chat/completions"; 
     m_model = "qwen3:4b"; 
@@ -65,8 +64,10 @@ void AIManager::sendMessage(const QString& message, const QString& context)
     json["model"] = m_model;
     json["messages"] = messages;
     json["temperature"] = 0.7;
-    if (m_maxTokens > 0) {
-        json["max_tokens"] = m_maxTokens; // OpenAI 兼容字段，若服务支持可限制生成长度，降低内存占用
+    if (m_maxTokens == 0) {
+        json["max_tokens"] = m_maxTokens;
+    } else {
+        json["max_tokens"] = 1024;
     }
     
     QByteArray data = QJsonDocument(json).toJson();

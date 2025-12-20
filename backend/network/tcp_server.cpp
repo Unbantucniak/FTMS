@@ -1,7 +1,5 @@
 #include "tcp_server.h"
-
 #include <QDebug>
-
 #include "client_handler.h"
 
 TcpServer::TcpServer(QObject* parent)

@@ -20,12 +20,10 @@ TcpClient::TcpClient(QObject *parent) : QObject(parent)
 void TcpClient::connectToServer(const QString& ip, int port)
 {
     m_socket->connectToHost(ip, port);
-    // 重置接收缓冲区
     m_recvBuffer.clear();
     m_expectedSize = 0;
 }
 
-// ==================== 辅助函数：发送带长度前缀的数据包 ====================
 static void sendPacket(QTcpSocket* socket, const QByteArray& payload)
 {
     QByteArray packet;
@@ -37,7 +35,6 @@ static void sendPacket(QTcpSocket* socket, const QByteArray& payload)
     socket->flush();
 }
 
-// ==================== 请求发送方法 ====================
 void TcpClient::login(const QString& username, const QString& password)
 {
     if (m_socket->state() != QAbstractSocket::ConnectedState) return;
@@ -298,37 +295,27 @@ void TcpClient::changePassword(const QString& username, const QString& oldPass, 
     sendPacket(m_socket, payload);
 }
 
-// ==================== 响应接收处理（带粘包/拆包处理） ====================
 void TcpClient::onReadyRead()
 {
-    // 将新数据追加到缓冲区
     m_recvBuffer.append(m_socket->readAll());
     
-    // 循环处理完整的数据包
     while (true) {
-        // 如果还没读取长度前缀，且缓冲区足够读取长度（4字节）
         if (m_expectedSize == 0) {
             if (m_recvBuffer.size() < (int)sizeof(quint32)) {
-                return; // 数据不足，等待更多数据
+                return; 
             }
-            // 读取长度前缀
             QDataStream sizeStream(m_recvBuffer.left(sizeof(quint32)));
             sizeStream.setVersion(QDataStream::Qt_6_0);
             sizeStream >> m_expectedSize;
             m_recvBuffer.remove(0, sizeof(quint32));
         }
         
-        // 检查是否收到完整数据包
         if ((quint32)m_recvBuffer.size() < m_expectedSize) {
-            return; // 数据不完整，等待更多数据
+            return; 
         }
-        
-        // 提取完整数据包
         QByteArray packet = m_recvBuffer.left(m_expectedSize);
         m_recvBuffer.remove(0, m_expectedSize);
         m_expectedSize = 0;
-        
-        // 处理数据包
         processResponse(packet);
     }
 }

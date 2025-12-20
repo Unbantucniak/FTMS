@@ -17,8 +17,7 @@ ChatWidget::ChatWidget(QWidget *parent) : QWidget(parent)
     // 连接网络信号
     connect(TcpClient::getInstance(), &TcpClient::aiChatResult, this, &ChatWidget::onAIResponse);
     
-    // 欢迎消息
-    addMessage("您好！我是您的出行助手，有什么可以帮您的吗？", false);
+    addMessage("欢迎使用扶摇航班票务系统！AI 出行顾问已上线，专注解答各类出行相关疑问～ 航班查询功能请您自行通过系统查询入口操作，有其他出行问题随时告诉我！", false);
 }
 
 void ChatWidget::buildUI()
@@ -87,9 +86,35 @@ void ChatWidget::buildUI()
     m_statusLabel->setObjectName("StatusLabel");
     m_statusLabel->hide();
     
+    // 创建思考状态指示器（更醒目的动画效果）
+    m_thinkingWidget = new QWidget(this);
+    m_thinkingWidget->setObjectName("ThinkingWidget");
+    m_thinkingWidget->setFixedHeight(50);
+    m_thinkingWidget->hide();
+    
+    auto *thinkingLayout = new QHBoxLayout(m_thinkingWidget);
+    thinkingLayout->setContentsMargins(24, 8, 24, 8);
+    thinkingLayout->setSpacing(12);
+    
+    m_thinkingLabel = new QLabel("🤔 AI 正在思考中", this);
+    m_thinkingLabel->setObjectName("ThinkingLabel");
+    
+    m_thinkingDots = new QLabel("", this);
+    m_thinkingDots->setObjectName("ThinkingDots");
+    m_thinkingDots->setFixedWidth(30);
+    
+    thinkingLayout->addWidget(m_thinkingLabel);
+    thinkingLayout->addWidget(m_thinkingDots);
+    thinkingLayout->addStretch();
+    
+    // 创建动画定时器
+    m_thinkingTimer = new QTimer(this);
+    connect(m_thinkingTimer, &QTimer::timeout, this, &ChatWidget::updateThinkingAnimation);
+    
     inputLayout->addWidget(m_inputEdit, 1);
     inputLayout->addWidget(m_sendBtn, 0, Qt::AlignBottom);
     
+    rootLayout->addWidget(m_thinkingWidget);  // 思考状态显示在输入框上方
     rootLayout->addWidget(m_inputFrame);
 }
 
@@ -253,6 +278,34 @@ void ChatWidget::applyTheme(bool isDark)
         "}"
     ).arg(t.subText));
     
+    // 思考状态指示器样式
+    m_thinkingWidget->setStyleSheet(QString(
+        "QWidget#ThinkingWidget {"
+        "   background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 %1, stop:1 %2);"
+        "   border-top: 2px solid %3;"
+        "   border-bottom: 1px solid %4;"
+        "}"
+    ).arg(isDark ? "#1e3a5f" : "#e0f2fe", isDark ? "#172554" : "#bae6fd", t.primary, t.border));
+    
+    m_thinkingLabel->setStyleSheet(QString(
+        "QLabel#ThinkingLabel {"
+        "   color: %1;"
+        "   font-size: 15px;"
+        "   font-weight: 600;"
+        "   font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;"
+        "   background: transparent;"
+        "}"
+    ).arg(t.primary));
+    
+    m_thinkingDots->setStyleSheet(QString(
+        "QLabel#ThinkingDots {"
+        "   color: %1;"
+        "   font-size: 18px;"
+        "   font-weight: bold;"
+        "   background: transparent;"
+        "}"
+    ).arg(t.primary));
+    
     m_isDark = isDark;
     
     // 更新已有气泡样式
@@ -415,8 +468,7 @@ void ChatWidget::onSendClicked()
     // 禁用输入控件，显示等待状态
     m_sendBtn->setEnabled(false);
     m_inputEdit->setEnabled(false);
-    m_statusLabel->setText("AI 正在思考...");
-    m_statusLabel->show();
+    showThinkingIndicator(true);
     
     // 发送消息到服务器
     TcpClient::getInstance()->sendAIChatMessage(m_username, text);
@@ -428,7 +480,7 @@ void ChatWidget::onAIResponse(bool success, const QString &response)
     m_sendBtn->setEnabled(true);
     m_inputEdit->setEnabled(true);
     m_inputEdit->setFocus();
-    m_statusLabel->hide();
+    showThinkingIndicator(false);
     
     // 显示AI回复或错误信息
     if (success) {
@@ -463,4 +515,27 @@ bool ChatWidget::event(QEvent *e)
         }
     }
     return QWidget::event(e);
+}
+
+void ChatWidget::showThinkingIndicator(bool show)
+{
+    if (show) {
+        m_dotCount = 0;
+        m_thinkingDots->setText("");
+        m_thinkingWidget->show();
+        m_thinkingTimer->start(400);  // 每 400ms 更新一次动画
+    } else {
+        m_thinkingTimer->stop();
+        m_thinkingWidget->hide();
+    }
+}
+
+void ChatWidget::updateThinkingAnimation()
+{
+    m_dotCount = (m_dotCount + 1) % 4;
+    QString dots;
+    for (int i = 0; i < m_dotCount; ++i) {
+        dots += "●";
+    }
+    m_thinkingDots->setText(dots);
 }

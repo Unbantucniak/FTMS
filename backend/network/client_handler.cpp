@@ -12,53 +12,38 @@ void ClientHandler::run() {
         qDebug() << "客户端连接失败：" << m_socket->errorString();
         return;
     }
-
     connect(m_socket, &QTcpSocket::readyRead, this, &ClientHandler::onReadyRead, Qt::DirectConnection);
     connect(m_socket, &QTcpSocket::disconnected, this, &ClientHandler::onDisconnected, Qt::DirectConnection);
-
+    
     m_aiManager = new AIManager();
 
-    // 重置接收缓冲区
     m_recvBuffer.clear();
     m_expectedSize = 0;
-
     qDebug() << "客户端连接成功，等待数据...";
     exec();
     
-    delete m_aiManager;
-    m_aiManager = nullptr;
+    delete m_aiManager;  m_aiManager = nullptr;
 }
 
-// ==================== 响应接收处理（带粘包/拆包处理） ====================
 void ClientHandler::onReadyRead() {
-    // 将新数据追加到缓冲区
     m_recvBuffer.append(m_socket->readAll());
     
-    // 循环处理完整的数据包
     while (true) {
-        // 如果还没读取长度前缀，且缓冲区足够读取长度（4字节）
         if (m_expectedSize == 0) {
             if (m_recvBuffer.size() < (int)sizeof(quint32)) {
-                return; // 数据不足，等待更多数据
+                return;
             }
-            // 读取长度前缀
             QDataStream sizeStream(m_recvBuffer.left(sizeof(quint32)));
             sizeStream.setVersion(QDataStream::Qt_6_0);
             sizeStream >> m_expectedSize;
             m_recvBuffer.remove(0, sizeof(quint32));
         }
-        
-        // 检查是否收到完整数据包
         if ((quint32)m_recvBuffer.size() < m_expectedSize) {
-            return; // 数据不完整，等待更多数据
+            return; 
         }
-        
-        // 提取完整数据包
         QByteArray packet = m_recvBuffer.left(m_expectedSize);
         m_recvBuffer.remove(0, m_expectedSize);
         m_expectedSize = 0;
-        
-        // 处理数据包
         processPacket(packet);
     }
 }
@@ -308,16 +293,15 @@ void ClientHandler::handleGetOccupiedSeatsRequest(const QByteArray& data) {
     qDebug() << "已占座位请求 - 航班：" << flightId << " 已占座位数：" << seats.size();
 }
 
-// ==================== 响应发送（带长度前缀） ====================
 void ClientHandler::sendResponse(ResponseStatus status, const QByteArray& data) {
-    // 先序列化响应内容
     QByteArray payload;
     QDataStream payloadOut(&payload, QIODevice::WriteOnly);
     payloadOut.setVersion(QDataStream::Qt_6_0);
     payloadOut << status << data;
     
-    // 构造带长度前缀的完整数据包
     QByteArray packet;
+
+    
     QDataStream packetOut(&packet, QIODevice::WriteOnly);
     packetOut.setVersion(QDataStream::Qt_6_0);
     packetOut << (quint32)payload.size();
@@ -332,7 +316,6 @@ void ClientHandler::handleAIChatRequest(const QByteArray& data) {
     QString username, message;
     in >> username >> message;
 
-    // AI不提供数据库查询服务，仅作为旅行咨询助手
     QString context = "";
 
     // 连接一次性信号处理响应

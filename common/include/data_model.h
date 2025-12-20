@@ -32,7 +32,8 @@ enum ResponseStatus {
     PasswordError,          // 密码错误
     FlightNotFound,         // 航班不存在
     NoSeatsLeft,            // 无剩余座位
-    UsernameExist           // 用户名已存在
+    UsernameExist,          // 用户名已存在
+    RouteNotMatch           // 航线不匹配（改签时出发地/目的地不一致）
 };
 
 // 用户结构体
@@ -64,7 +65,6 @@ struct Flight {
     double price;           // 票价
     int rest_seats;         // 剩余座位
 
-    // QDataStream序列化
     friend QDataStream& operator<<(QDataStream& out, const Flight& flight) {
         out << flight.flight_id << flight.departure << flight.destination
             << flight.departure_airport << flight.arrival_airport

@@ -145,7 +145,7 @@ bool DBManager::registerUser(const User& user) {
     query.prepare("SELECT username FROM user WHERE username = :username");
     query.bindValue(":username", user.username);
     if (query.exec() && query.next()) {
-        return false;  // 用户名已存在
+        return false;
     }
 
     query.prepare("INSERT INTO user (username, password, real_name, phone) VALUES (:username, :password, :real_name, :phone)");
@@ -564,8 +564,10 @@ bool DBManager::changeTicket(const QString& orderId, const QString& newFlightId)
 
     QSqlQuery query(db);
     
-    // 获取原订单信息
-    query.prepare("SELECT username, flight_id FROM ticket WHERE order_id = :orderId");
+    // 获取原订单信息及原航班的出发地/目的地
+    query.prepare("SELECT t.username, t.flight_id, f.departure, f.destination "
+                  "FROM ticket t JOIN flight f ON t.flight_id = f.flight_id "
+                  "WHERE t.order_id = :orderId");
     query.bindValue(":orderId", orderId);
     if (!query.exec() || !query.next()) {
         db.rollback();
@@ -573,11 +575,30 @@ bool DBManager::changeTicket(const QString& orderId, const QString& newFlightId)
     }
     QString username = query.value(0).toString();
     QString oldFlightId = query.value(1).toString();
+    QString oldDeparture = query.value(2).toString();
+    QString oldDestination = query.value(3).toString();
 
-    // 检查新航班余票
-    query.prepare("SELECT rest_seats FROM flight WHERE flight_id = :flightId");
+    // 检查新航班的出发地和目的地是否匹配
+    query.prepare("SELECT departure, destination, rest_seats FROM flight WHERE flight_id = :flightId");
     query.bindValue(":flightId", newFlightId);
-    if (!query.exec() || !query.next() || query.value(0).toInt() <= 0) {
+    if (!query.exec() || !query.next()) {
+        db.rollback();
+        return false;  // 新航班不存在
+    }
+    QString newDeparture = query.value(0).toString();
+    QString newDestination = query.value(1).toString();
+    int restSeats = query.value(2).toInt();
+    
+    // 验证航线是否相同
+    if (oldDeparture != newDeparture || oldDestination != newDestination) {
+        db.rollback();
+        qDebug() << "改签失败：航线不匹配 - 原航线:" << oldDeparture << "→" << oldDestination
+                 << ", 新航线:" << newDeparture << "→" << newDestination;
+        return false;  // 航线不匹配
+    }
+    
+    // 检查新航班余票
+    if (restSeats <= 0) {
         db.rollback();
         return false;
     }

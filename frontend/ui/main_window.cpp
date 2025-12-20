@@ -459,7 +459,7 @@ void MainWindow::setupConnections()
             navigateTo(1);
         } else {
             msgBox.setWindowTitle("改签失败");
-            msgBox.setText("改签失败，请重试");
+            msgBox.setText("改签失败！\n\n可能原因：\n• 只能改签到相同出发地和目的地的航班\n• 目标航班无余票");
             msgBox.setIcon(QMessageBox::Warning);
         }
         msgBox.exec();

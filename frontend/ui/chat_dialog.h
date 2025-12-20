@@ -12,6 +12,7 @@
 #include <QFrame>
 #include <QEvent>
 #include <QScrollBar>
+#include <QTimer>
 
 // 主题配色结构
 struct ChatTheme {
@@ -53,6 +54,8 @@ private:
     void addMessage(const QString &text, bool fromUser);
     void scrollToBottom();
     ChatTheme getTheme(bool isDark) const;
+    void showThinkingIndicator(bool show);
+    void updateThinkingAnimation();
 
     // UI 组件
     QLabel *m_titleLabel{};
@@ -63,6 +66,13 @@ private:
     QPushButton *m_sendBtn{};
     QLabel *m_statusLabel{};
     QFrame *m_inputFrame{};
+    
+    // 思考状态指示器组件
+    QWidget *m_thinkingWidget{};
+    QLabel *m_thinkingLabel{};
+    QLabel *m_thinkingDots{};
+    QTimer *m_thinkingTimer{};
+    int m_dotCount{0};
 
     // 状态
     bool m_isDark{false};
