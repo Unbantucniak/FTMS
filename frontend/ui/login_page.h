@@ -24,7 +24,6 @@ private:
     void applyStyles();
     QGraphicsDropShadowEffect* createShadow(QColor color, int blur, int offsetY);
 
-    // UI Components
     QWidget *m_loginCard;
     QLabel *m_logoLabel;
     QLabel *m_titleLabel;

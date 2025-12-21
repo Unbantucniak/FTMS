@@ -3,8 +3,6 @@
 #include "main_window.h"
 #include "register_page.h"
 #include <QMessageBox>
-#include <QPainter>
-#include <QLinearGradient>
 #include <QTimer>
 
 LoginPage::LoginPage(QWidget *parent) : QWidget(parent)
@@ -13,13 +11,11 @@ LoginPage::LoginPage(QWidget *parent) : QWidget(parent)
     applyStyles();
     setupConnections();
     
-    // 连接到服务器
     TcpClient::getInstance()->connectToServer("127.0.0.1", 12345);
 }
 
 LoginPage::~LoginPage()
 {
-    // 断开与TcpClient单例的所有连接，防止野指针和重复触发
     disconnect(TcpClient::getInstance(), nullptr, this, nullptr);
 }
 
@@ -34,7 +30,6 @@ void LoginPage::setupUI()
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
     
-    // ========== 左侧品牌区域 ==========
     QWidget *brandPanel = new QWidget(this);
     brandPanel->setObjectName("BrandPanel");
     brandPanel->setMinimumWidth(400);
@@ -43,7 +38,7 @@ void LoginPage::setupUI()
     brandLayout->setContentsMargins(50, 60, 50, 60);
     brandLayout->setSpacing(20);
     
-    // Logo
+
     m_logoLabel = new QLabel("✈", brandPanel);
     m_logoLabel->setObjectName("LogoLabel");
     m_logoLabel->setAlignment(Qt::AlignLeft);
@@ -64,7 +59,6 @@ void LoginPage::setupUI()
     
     mainLayout->addWidget(brandPanel, 4);
     
-    // ========== 右侧登录区域 ==========
     QWidget *loginPanel = new QWidget(this);
     loginPanel->setObjectName("LoginPanel");
     

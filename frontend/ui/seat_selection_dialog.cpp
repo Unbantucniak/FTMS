@@ -124,7 +124,6 @@ void SeatSelectionDialog::setupUI()
     
     mainLayout->addWidget(legendWidget);
 
-    // ========== 座位区域 ==========
     QScrollArea *scrollArea = new QScrollArea(this);
     scrollArea->setWidgetResizable(true);
     scrollArea->setFrameShape(QFrame::NoFrame);
@@ -254,7 +253,6 @@ void SeatSelectionDialog::setupUI()
     scrollArea->setWidget(seatContainer);
     mainLayout->addWidget(scrollArea, 1);
 
-    // ========== 底部按钮栏 ==========
     QWidget *bottomWidget = new QWidget(this);
     bottomWidget->setStyleSheet("background-color: #1e293b; border-top: 1px solid #334155;");
     bottomWidget->setFixedHeight(80);

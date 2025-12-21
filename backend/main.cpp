@@ -1,11 +1,5 @@
 #include <QCoreApplication>
 #include <QDebug>
-#include <QThread>
-#include <iostream>
-#include <QFile>
-#include <QJsonDocument>
-#include <QJsonArray>
-#include <QJsonObject>
 #include "network/tcp_server.h"
 #include "db/db_manager.h"
 

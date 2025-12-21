@@ -10,15 +10,16 @@
 #include <QLineEdit>
 #include <QComboBox>
 #include <QDateEdit>
+#include <QCheckBox>
 #include <QLabel>
 #include <QListWidget>
 #include <QCompleter>
 #include <QGraphicsDropShadowEffect>
 #include "orders_page.h"
 #include "profile_page.h"
+#include "chat_dialog.h"
 
-struct Flight;  // Forward declaration
-class ChatWidget;
+struct Flight;
 
 class MainWindow : public QMainWindow
 {
@@ -35,7 +36,6 @@ private slots:
     void onOccupiedSeatsReceived(const QStringList& seats);
     void onCitiesReceived(const QStringList& cities);
     void performSearch();
-    // void openChat(); // Removed as chat is integrated
 
 private:
     void setupUI();
@@ -48,15 +48,12 @@ private:
     QString m_username;
     bool m_isDarkTheme;
     
-    // Main layout components
     QWidget *m_centralWidget;
     QWidget *m_sidebar;
     QStackedWidget *m_stack;
     
-    // Chat Widget
     ChatWidget *m_chatWidget;
     
-    // Sidebar buttons
     QPushButton *m_flightBtn;
     QPushButton *m_ordersBtn;
     QPushButton *m_profileBtn;
@@ -64,28 +61,25 @@ private:
     QPushButton *m_themeBtn;
     QPushButton *m_logoutBtn;
     
-    // Flight search page components
     QWidget *m_flightPage;
     QLabel *m_mainTitleLabel;
     QComboBox *m_departureCombo;
     QComboBox *m_destinationCombo;
     QDateEdit *m_dateEdit;
+    QCheckBox *m_dateLimitCheckBox; 
     QPushButton *m_searchBtn;
     QPushButton *m_swapBtn;
     QScrollArea *m_flightScrollArea;
     QVBoxLayout *m_flightLayout;
     QLabel *m_resultCountLabel;
     
-    // Other pages
     OrdersPage *m_ordersPage;
     ProfilePage *m_profilePage;
     
-    // Booking state
     QString m_changingOrderId;
     QString m_pendingFlightId;
     int m_pendingFlightSeats;
     
-    // Cities data
     QStringList m_cities;
 };
 

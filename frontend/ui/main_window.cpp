@@ -6,7 +6,6 @@
 #include "chat_dialog.h"
 #include "theme_manager.h"
 #include <QMessageBox>
-#include <QApplication>
 #include <QFrame>
 #include <QTimer>
 #include <QPropertyAnimation>
@@ -22,7 +21,6 @@ MainWindow::MainWindow(QWidget *parent)
     applyTheme();
     setupConnections();
     
-    // 启动时请求城市列表
     QTimer::singleShot(500, this, [](){
         TcpClient::getInstance()->getCities();
     });
@@ -42,27 +40,22 @@ void MainWindow::setupUI()
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
     
-    // ========== 侧边栏 ==========
+    // 左侧是固定导航，右侧是业务页面
     setupSidebar();
     mainLayout->addWidget(m_sidebar);
     
-    // ========== 主内容区 ==========
     m_stack = new QStackedWidget(m_centralWidget);
     m_stack->setObjectName("MainStack");
     
-    // 航班查询页
     setupFlightPage();
     m_stack->addWidget(m_flightPage);
     
-    // 订单页
     m_ordersPage = new OrdersPage();
     m_stack->addWidget(m_ordersPage);
     
-    // 个人中心页
     m_profilePage = new ProfilePage();
     m_stack->addWidget(m_profilePage);
     
-    // 出行助手页
     m_chatWidget = new ChatWidget();
     m_stack->addWidget(m_chatWidget);
 
@@ -159,21 +152,18 @@ void MainWindow::setupFlightPage()
     pageLayout->setContentsMargins(48, 32, 48, 32);
     pageLayout->setSpacing(28);
     
-    // ========== 顶部标题区 ==========
     QHBoxLayout *headerLayout = new QHBoxLayout();
     m_mainTitleLabel = new QLabel("航班查询");
     m_mainTitleLabel->setObjectName("PageTitle");
     headerLayout->addWidget(m_mainTitleLabel);
     headerLayout->addStretch();
     
-    // 结果计数
     m_resultCountLabel = new QLabel("");
     m_resultCountLabel->setObjectName("ResultCount");
     headerLayout->addWidget(m_resultCountLabel);
     
     pageLayout->addLayout(headerLayout);
     
-    // ========== 搜索面板 ==========
     QWidget *searchPanel = new QWidget(m_flightPage);
     searchPanel->setObjectName("SearchPanel");
     searchPanel->setGraphicsEffect(createShadow(QColor(0, 0, 0, 25), 24, 6));
@@ -182,11 +172,9 @@ void MainWindow::setupFlightPage()
     searchLayout->setContentsMargins(32, 28, 32, 28);
     searchLayout->setSpacing(22);
     
-    // 搜索输入行
     QHBoxLayout *inputLayout = new QHBoxLayout();
     inputLayout->setSpacing(15);
     
-    // 出发地
     QVBoxLayout *depLayout = new QVBoxLayout();
     depLayout->setSpacing(8);
     QLabel *depLabel = new QLabel("✈ 出发城市");
@@ -202,7 +190,6 @@ void MainWindow::setupFlightPage()
     depLayout->addWidget(m_departureCombo);
     inputLayout->addLayout(depLayout);
     
-    // 交换按钮
     m_swapBtn = new QPushButton("⇄");
     m_swapBtn->setObjectName("SwapBtn");
     m_swapBtn->setFixedSize(45, 45);
@@ -210,7 +197,6 @@ void MainWindow::setupFlightPage()
     m_swapBtn->setToolTip("交换出发地和目的地");
     inputLayout->addWidget(m_swapBtn, 0, Qt::AlignBottom);
     
-    // 目的地
     QVBoxLayout *destLayout = new QVBoxLayout();
     destLayout->setSpacing(8);
     QLabel *destLabel = new QLabel("📍 到达城市");
@@ -228,11 +214,17 @@ void MainWindow::setupFlightPage()
     
     inputLayout->addSpacing(20);
     
-    // 日期
     QVBoxLayout *dateLayout = new QVBoxLayout();
     dateLayout->setSpacing(8);
     QLabel *dateLabel = new QLabel("📅 出发日期");
     dateLabel->setObjectName("FieldLabel");
+    
+    // 日期限制复选框
+    m_dateLimitCheckBox = new QCheckBox("开启日期查询（选定日期前后三天）");
+    m_dateLimitCheckBox->setChecked(true);
+    m_dateLimitCheckBox->setCursor(Qt::PointingHandCursor);
+    m_dateLimitCheckBox->setObjectName("DateLimitCheckBox");
+    
     m_dateEdit = new QDateEdit();
     m_dateEdit->setObjectName("DateEdit");
     m_dateEdit->setCalendarPopup(true);
@@ -241,30 +233,29 @@ void MainWindow::setupFlightPage()
     m_dateEdit->setDisplayFormat("yyyy年MM月dd日 ddd");
     m_dateEdit->setMinimumHeight(52);
     m_dateEdit->setMinimumWidth(200);
-    m_dateEdit->setButtonSymbols(QAbstractSpinBox::NoButtons);  // 隐藏上下按钮
-    m_dateEdit->setKeyboardTracking(false);  // 禁用键盘追踪
+    m_dateEdit->setButtonSymbols(QAbstractSpinBox::NoButtons);
+    m_dateEdit->setKeyboardTracking(false);
     m_dateEdit->setCursor(Qt::PointingHandCursor);
-    m_dateEdit->setFocusPolicy(Qt::ClickFocus);  // 仅点击获取焦点
+    m_dateEdit->setFocusPolicy(Qt::ClickFocus);
     
-    // 禁用键盘输入，只能通过日历选择
     if (auto *le = m_dateEdit->findChild<QLineEdit*>()) {
         le->setReadOnly(true);
         le->setCursor(Qt::PointingHandCursor);
     }
     
-    // 自定义日历控件
     QCalendarWidget *calendar = m_dateEdit->calendarWidget();
-    calendar->setVerticalHeaderFormat(QCalendarWidget::NoVerticalHeader);  // 隐藏周数
-    calendar->setHorizontalHeaderFormat(QCalendarWidget::ShortDayNames);   // 短星期名
-    calendar->setGridVisible(false);  // 隐藏网格线
-    calendar->setMinimumSize(350, 300);  // 更大的日历
+    calendar->setVerticalHeaderFormat(QCalendarWidget::NoVerticalHeader);
+    calendar->setHorizontalHeaderFormat(QCalendarWidget::ShortDayNames);
+    calendar->setGridVisible(false);
+    calendar->setMinimumSize(350, 300);
+    
     dateLayout->addWidget(dateLabel);
+    dateLayout->addWidget(m_dateLimitCheckBox);
     dateLayout->addWidget(m_dateEdit);
     inputLayout->addLayout(dateLayout);
     
     inputLayout->addStretch();
     
-    // 搜索按钮
     m_searchBtn = new QPushButton("🔍 搜索航班");
     m_searchBtn->setObjectName("SearchBtn");
     m_searchBtn->setMinimumSize(150, 52);
@@ -273,7 +264,6 @@ void MainWindow::setupFlightPage()
     
     searchLayout->addLayout(inputLayout);
     
-    // 快捷日期选择
     QHBoxLayout *quickDateLayout = new QHBoxLayout();
     quickDateLayout->setSpacing(10);
     
@@ -286,7 +276,9 @@ void MainWindow::setupFlightPage()
         btn->setObjectName("QuickDateBtn");
         btn->setCursor(Qt::PointingHandCursor);
         connect(btn, &QPushButton::clicked, [this, daysOffset](){
-            m_dateEdit->setDate(QDate::currentDate().addDays(daysOffset));
+            QDate newDate = QDate::currentDate().addDays(daysOffset);
+            m_dateEdit->setDate(newDate);
+            m_dateLimitCheckBox->setChecked(true);  // 自动勾选日期限制
         });
         return btn;
     };
@@ -302,7 +294,6 @@ void MainWindow::setupFlightPage()
     
     pageLayout->addWidget(searchPanel);
     
-    // ========== 结果列表 ==========
     m_flightScrollArea = new QScrollArea(m_flightPage);
     m_flightScrollArea->setObjectName("FlightScrollArea");
     m_flightScrollArea->setWidgetResizable(true);
@@ -376,20 +367,11 @@ void MainWindow::setupConnections()
                 FlightCard *card = new FlightCard(f);
                 connect(card, &FlightCard::bookRequested, this, [this](const Flight& flight){
                     if (!m_changingOrderId.isEmpty()) {
-                        // 改签确认
-                        QMessageBox msgBox(this);
-                        msgBox.setWindowTitle("确认改签");
-                        msgBox.setText(QString("确定要改签到航班 %1 吗？\n%2 → %3")
-                                       .arg(flight.flight_id, flight.departure, flight.destination));
-                        msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-                        msgBox.setButtonText(QMessageBox::Yes, "确定");
-                        msgBox.setButtonText(QMessageBox::No, "取消");
-                        if (msgBox.exec() == QMessageBox::Yes) {
-                            TcpClient::getInstance()->changeTicket(m_changingOrderId, flight.flight_id);
-                            m_changingOrderId.clear();
-                        }
+                        // 改签也走同一个选座弹窗
+                        m_pendingFlightId = flight.flight_id;
+                        m_pendingFlightSeats = flight.rest_seats;
+                        TcpClient::getInstance()->getOccupiedSeats(flight.flight_id);
                     } else {
-                        // 选座预订
                         m_pendingFlightId = flight.flight_id;
                         m_pendingFlightSeats = flight.rest_seats;
                         TcpClient::getInstance()->getOccupiedSeats(flight.flight_id);
@@ -401,10 +383,8 @@ void MainWindow::setupConnections()
         m_flightLayout->addStretch();
     });
     
-    // 已占座位
     connect(TcpClient::getInstance(), &TcpClient::occupiedSeatsResult, this, &MainWindow::onOccupiedSeatsReceived);
     
-    // 预订结果
     connect(TcpClient::getInstance(), &TcpClient::bookTicketResult, this, [this](bool success, const QString& msg){
         QMessageBox msgBox(this);
         msgBox.setStandardButtons(QMessageBox::Ok);
@@ -421,7 +401,6 @@ void MainWindow::setupConnections()
         msgBox.exec();
     });
     
-    // 订单相关
     connect(m_ordersPage, &OrdersPage::cancelOrder, TcpClient::getInstance(), &TcpClient::cancelTicket);
     connect(TcpClient::getInstance(), &TcpClient::cancelTicketResult, this, [this](bool success){
         QMessageBox msgBox(this);
@@ -518,7 +497,13 @@ void MainWindow::performSearch()
 {
     QString dep = m_departureCombo->currentText().trimmed();
     QString dest = m_destinationCombo->currentText().trimmed();
-    QDate date = m_dateEdit->date();
+    
+    if (dep.isEmpty() || dest.isEmpty()) {
+        QMessageBox::warning(this, "提示", "请输入出发地和目的地");
+        return;
+    }
+    
+    QDate date = m_dateLimitCheckBox->isChecked() ? m_dateEdit->date() : QDate();
     
     TcpClient::getInstance()->queryFlights(dep, dest, date);
 }
@@ -564,7 +549,12 @@ void MainWindow::onOccupiedSeatsReceived(const QStringList& seats)
     SeatSelectionDialog dialog(m_pendingFlightId, seats, totalSeats, this);
     if (dialog.exec() == QDialog::Accepted) {
         QString selectedSeat = dialog.selectedSeat();
-        TcpClient::getInstance()->bookTicket(m_username, m_pendingFlightId, selectedSeat);
+        if (!m_changingOrderId.isEmpty()) {
+            TcpClient::getInstance()->changeTicket(m_changingOrderId, m_pendingFlightId, selectedSeat);
+            m_changingOrderId.clear();
+        } else {
+            TcpClient::getInstance()->bookTicket(m_username, m_pendingFlightId, selectedSeat);
+        }
     }
     m_pendingFlightId.clear();
 }
@@ -763,6 +753,33 @@ void MainWindow::applyTheme()
             subcontrol-origin: padding;
             subcontrol-position: right center;
             background: transparent;
+        }
+        
+        /* ========== 日期限制复选框 ========== */
+        QCheckBox#DateLimitCheckBox {
+            color: #94a3b8;
+            font-size: 13px;
+            spacing: 8px;
+            background-color: transparent;
+            border: none;
+        }
+        
+        QCheckBox#DateLimitCheckBox::indicator {
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            border: 2px solid #475569;
+            background-color: #0f172a;
+        }
+        
+        QCheckBox#DateLimitCheckBox::indicator:hover {
+            border-color: #3b82f6;
+            background-color: #1e293b;
+        }
+        
+        QCheckBox#DateLimitCheckBox::indicator:checked {
+            background-color: #3b82f6;
+            border-color: #3b82f6;
         }
         
         /* 日历弹出框样式 */
@@ -1207,6 +1224,33 @@ void MainWindow::applyTheme()
             subcontrol-origin: padding;
             subcontrol-position: right center;
             background: transparent;
+        }
+        
+        /* ========== 日期限制复选框 ========== */
+        QCheckBox#DateLimitCheckBox {
+            color: #64748b;
+            font-size: 13px;
+            spacing: 8px;
+            background-color: transparent;
+            border: none;
+        }
+        
+        QCheckBox#DateLimitCheckBox::indicator {
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            border: 2px solid #cbd5e1;
+            background-color: #f8fafc;
+        }
+        
+        QCheckBox#DateLimitCheckBox::indicator:hover {
+            border-color: #3b82f6;
+            background-color: white;
+        }
+        
+        QCheckBox#DateLimitCheckBox::indicator:checked {
+            background-color: #3b82f6;
+            border-color: #3b82f6;
         }
         
         /* 日历弹出框样式 */

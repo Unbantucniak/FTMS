@@ -10,9 +10,6 @@ FlightCard::FlightCard(const Flight& flight, QWidget *parent)
 }
 
 void FlightCard::setupUI() {
-    // 样式已移至 MainWindow 的全局主题中统一管理，以解决深浅色模式切换问题
-
-    // 添加阴影效果
     QGraphicsDropShadowEffect *shadow = new QGraphicsDropShadowEffect(this);
     shadow->setBlurRadius(15);
     shadow->setColor(QColor(0, 0, 0, 30));
@@ -99,7 +96,7 @@ void FlightCard::setupUI() {
     mainLayout->addLayout(arrLayout);
     mainLayout->addStretch();
 
-    // 下部分：价格和操作 (底部颜色块)
+    // 下部分：价格和操作
     QWidget *bottomWidget = new QWidget(this);
     bottomWidget->setObjectName("InfoContainer");
     QHBoxLayout *bottomLayout = new QHBoxLayout(bottomWidget);

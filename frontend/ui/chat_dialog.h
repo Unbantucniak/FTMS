@@ -64,7 +64,6 @@ private:
     QVBoxLayout *m_messagesLayout{};
     QTextEdit *m_inputEdit{};
     QPushButton *m_sendBtn{};
-    QLabel *m_statusLabel{};
     QFrame *m_inputFrame{};
     
     // 思考状态指示器组件

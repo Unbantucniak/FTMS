@@ -5,20 +5,21 @@
 #include <QTcpSocket>
 #include "data_model.h"
 
+// 前端和后端通信的单例
 class TcpClient : public QObject
 {
     Q_OBJECT
 public:
     static TcpClient* getInstance();
-    void connectToServer(const QString& ip, int port); //连接后端
-    void login(const QString& username, const QString& password); //
+    void connectToServer(const QString& ip, int port);
+    void login(const QString& username, const QString& password);
     void queryFlights(const QString& departure, const QString& destination, const QDate& date);
     void bookTicket(const QString& username, const QString& flightId, const QString& seatNumber = QString());
     void queryOrders(const QString& username);
     void getUserInfo(const QString& username);
     void updateUserInfo(const User& user);
     void cancelTicket(const QString& orderId);
-    void changeTicket(const QString& orderId, const QString& newFlightId);
+    void changeTicket(const QString& orderId, const QString& newFlightId, const QString& seatNumber);
     void registerUser(const User& user);
     void checkUsername(const QString& username);
     void getCities();
@@ -53,7 +54,6 @@ private:
     static TcpClient *m_instance;
     int m_lastRequestType = 0;
     
-    // 用于处理 TCP 粘包/拆包
     QByteArray m_recvBuffer;
     quint32 m_expectedSize = 0;
 };

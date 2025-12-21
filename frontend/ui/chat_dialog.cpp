@@ -1,6 +1,5 @@
 #include "chat_dialog.h"
 #include "../network/tcp_client.h"
-#include <QApplication>
 #include <QKeyEvent>
 #include <QTimer>
 #include <QGuiApplication>
@@ -10,11 +9,9 @@ ChatWidget::ChatWidget(QWidget *parent) : QWidget(parent)
 {
     buildUI();
     
-    // 检测系统主题并应用
     m_isDark = detectSystemDark();
     applyTheme(m_isDark);
     
-    // 连接网络信号
     connect(TcpClient::getInstance(), &TcpClient::aiChatResult, this, &ChatWidget::onAIResponse);
     
     addMessage("欢迎使用扶摇航班票务系统！AI 出行顾问已上线，专注解答各类出行相关疑问～ 航班查询功能请您自行通过系统查询入口操作，有其他出行问题随时告诉我！", false);
@@ -28,7 +25,6 @@ void ChatWidget::buildUI()
     rootLayout->setContentsMargins(0, 0, 0, 0);
     rootLayout->setSpacing(0);
     
-    // ========== 顶部标题栏 ==========
     auto *topBar = new QFrame(this);
     topBar->setObjectName("TopBar");
     topBar->setFixedHeight(60);
@@ -44,7 +40,6 @@ void ChatWidget::buildUI()
     
     rootLayout->addWidget(topBar);
     
-    // ========== 中部消息区域 ==========
     m_messagesContainer = new QWidget(this);
     m_messagesContainer->setObjectName("MessagesContainer");
     
@@ -62,7 +57,6 @@ void ChatWidget::buildUI()
     
     rootLayout->addWidget(m_scrollArea, 1);
     
-    // ========== 底部输入区域 ==========
     m_inputFrame = new QFrame(this);
     m_inputFrame->setObjectName("InputFrame");
     
@@ -81,10 +75,6 @@ void ChatWidget::buildUI()
     m_sendBtn->setCursor(Qt::PointingHandCursor);
     m_sendBtn->setFixedSize(80, 40);
     connect(m_sendBtn, &QPushButton::clicked, this, &ChatWidget::onSendClicked);
-    
-    m_statusLabel = new QLabel(this);
-    m_statusLabel->setObjectName("StatusLabel");
-    m_statusLabel->hide();
     
     // 创建思考状态指示器（更醒目的动画效果）
     m_thinkingWidget = new QWidget(this);
@@ -269,14 +259,6 @@ void ChatWidget::applyTheme(bool isDark)
         "   color: %4;"
         "}"
     ).arg(t.primary, t.primaryDark, t.border, t.subText));
-    
-    m_statusLabel->setStyleSheet(QString(
-        "QLabel#StatusLabel {"
-        "   color: %1;"
-        "   font-size: 12px;"
-        "   font-style: italic;"
-        "}"
-    ).arg(t.subText));
     
     // 思考状态指示器样式
     m_thinkingWidget->setStyleSheet(QString(

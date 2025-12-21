@@ -147,7 +147,7 @@ void RegisterPage::setupUI() {
     cardLayout->setContentsMargins(35, 35, 35, 30);
     cardLayout->setSpacing(0);
 
-    // Logo
+
     QLabel *logoLabel = new QLabel("✈", card);
     logoLabel->setStyleSheet("font-size: 40px;");
     logoLabel->setAlignment(Qt::AlignCenter);

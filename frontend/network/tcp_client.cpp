@@ -191,7 +191,7 @@ void TcpClient::cancelTicket(const QString& orderId)
     sendPacket(m_socket, payload);
 }
 
-void TcpClient::changeTicket(const QString& orderId, const QString& newFlightId)
+void TcpClient::changeTicket(const QString& orderId, const QString& newFlightId, const QString& seatNumber)
 {
     if (m_socket->state() != QAbstractSocket::ConnectedState) return;
 
@@ -204,7 +204,7 @@ void TcpClient::changeTicket(const QString& orderId, const QString& newFlightId)
     QByteArray requestData;
     QDataStream requestOut(&requestData, QIODevice::WriteOnly);
     requestOut.setVersion(QDataStream::Qt_6_0);
-    requestOut << orderId << newFlightId;
+    requestOut << orderId << newFlightId << seatNumber;
     out << requestData;
     
     sendPacket(m_socket, payload);

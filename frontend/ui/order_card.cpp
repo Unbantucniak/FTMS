@@ -10,9 +10,6 @@ OrderCard::OrderCard(const Order& order, QWidget *parent)
 }
 
 void OrderCard::setupUI() {
-    // 样式已移至 MainWindow 的全局主题中统一管理
-
-    // 添加阴影效果
     QGraphicsDropShadowEffect *shadow = new QGraphicsDropShadowEffect(this);
     shadow->setBlurRadius(15);
     shadow->setColor(QColor(0, 0, 0, 30));

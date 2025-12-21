@@ -48,6 +48,7 @@ void ClientHandler::onReadyRead() {
     }
 }
 
+// 解析请求类型并分发
 void ClientHandler::processPacket(const QByteArray& packet) {
     QDataStream in(packet);
     in.setVersion(QDataStream::Qt_6_0);
@@ -245,13 +246,13 @@ void ClientHandler::handleRegisterRequest(const QByteArray& data) {
 
 void ClientHandler::handleChangeTicketRequest(const QByteArray& data) {
     QDataStream in(data);
-    QString orderId, newFlightId;
-    in >> orderId >> newFlightId;
+    QString orderId, newFlightId, seatNumber;
+    in >> orderId >> newFlightId >> seatNumber;
 
-    bool success = DBManager::getInstance()->changeTicket(orderId, newFlightId);
+    bool success = DBManager::getInstance()->changeTicket(orderId, newFlightId, seatNumber);
     sendResponse(success ? Success : Failed);
 
-    qDebug() << "改签请求 - 订单号：" << orderId << " 新航班：" << newFlightId << " 结果：" << (success ? "成功" : "失败");
+    qDebug() << "改签请求 - 订单号：" << orderId << " 新航班：" << newFlightId << " 座位：" << seatNumber << " 结果：" << (success ? "成功" : "失败");
 }
 
 void ClientHandler::handleCheckUsernameRequest(const QByteArray& data) {
@@ -293,6 +294,7 @@ void ClientHandler::handleGetOccupiedSeatsRequest(const QByteArray& data) {
     qDebug() << "已占座位请求 - 航班：" << flightId << " 已占座位数：" << seats.size();
 }
 
+// 小助手：先拼 payload 再写长度
 void ClientHandler::sendResponse(ResponseStatus status, const QByteArray& data) {
     QByteArray payload;
     QDataStream payloadOut(&payload, QIODevice::WriteOnly);
@@ -311,6 +313,7 @@ void ClientHandler::sendResponse(ResponseStatus status, const QByteArray& data) 
     m_socket->flush();
 }
 
+
 void ClientHandler::handleAIChatRequest(const QByteArray& data) {
     QDataStream in(data);
     QString username, message;
@@ -318,7 +321,6 @@ void ClientHandler::handleAIChatRequest(const QByteArray& data) {
 
     QString context = "";
 
-    // 连接一次性信号处理响应
     QMetaObject::Connection *conn = new QMetaObject::Connection;
     *conn = connect(m_aiManager, &AIManager::responseReceived, this, [this, conn](const QString& response) {
         QByteArray responseData;
@@ -344,13 +346,6 @@ void ClientHandler::handleAIChatRequest(const QByteArray& data) {
     m_aiManager->sendMessage(message, context);
 }
 
-void ClientHandler::onDisconnected() {
-    qDebug() << "客户端断开连接，描述符：" << m_socketDescriptor;
-    m_socket->close();
-    m_socket->deleteLater();
-    quit();
-}
-
 void ClientHandler::handleChangePasswordRequest(const QByteArray& data) {
     QDataStream in(data);
     QString username, oldPass, newPass;
@@ -360,4 +355,11 @@ void ClientHandler::handleChangePasswordRequest(const QByteArray& data) {
     sendResponse(success ? Success : Failed);
 
     qDebug() << "修改密码请求 - 用户名：" << username << " 结果：" << (success ? "成功" : "失败");
+}
+
+void ClientHandler::onDisconnected() {
+    qDebug() << "客户端断开连接，描述符：" << m_socketDescriptor;
+    m_socket->close();
+    m_socket->deleteLater();
+    quit();
 }

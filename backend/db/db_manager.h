@@ -16,7 +16,7 @@ class DBManager {
 public:
     static DBManager* getInstance();
 
-    // SQLite 初始化：只需要数据库文件路径
+    // 初始化数据库文件路径和表结构
     bool init(const QString& dbPath = "ftms.db");
 
     ResponseStatus verifyUser(const QString& username, const QString& password);
@@ -32,7 +32,7 @@ public:
     User getUserInfo(const QString& username);
     bool updateUserInfo(const User& user);
     bool cancelTicket(const QString& orderId);
-    bool changeTicket(const QString& orderId, const QString& newFlightId);
+    bool changeTicket(const QString& orderId, const QString& newFlightId, const QString& seatNumber);
     bool changePassword(const QString& username, const QString& oldPass, const QString& newPass);
 
     bool registerUser(const User& user);
@@ -50,10 +50,8 @@ private:
     DBManager(const DBManager&) = delete;
     DBManager& operator=(const DBManager&) = delete;
 
-    // 创建数据库表结构
     bool createTables();
 
-    // 按线程获取独立的 SQLite 连接（线程安全）
     QSqlDatabase getDb();
 
     QString m_dbPath;

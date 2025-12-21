@@ -10,7 +10,6 @@ AIManager::AIManager(QObject *parent) : QObject(parent)
     m_model = "qwen3:4b"; 
     m_maxTokens = 0; 
 
-    // 允许通过环境变量覆盖配置，便于切换小模型/不同服务
     auto env = QProcessEnvironment::systemEnvironment();
     const QString envModel = env.value("FTMS_AI_MODEL").trimmed();
     if (!envModel.isEmpty()) m_model = envModel;
@@ -64,7 +63,7 @@ void AIManager::sendMessage(const QString& message, const QString& context)
     json["model"] = m_model;
     json["messages"] = messages;
     json["temperature"] = 0.7;
-    if (m_maxTokens == 0) {
+    if (m_maxTokens > 0) {
         json["max_tokens"] = m_maxTokens;
     } else {
         json["max_tokens"] = 1024;
@@ -94,8 +93,6 @@ void AIManager::onReplyFinished(QNetworkReply *reply)
                 if (firstChoice.contains("message")) {
                     QJsonObject message = firstChoice["message"].toObject();
                     QString content = message["content"].toString();
-                    
-                    // 移除 <think>...</think> 标签及其内容，净化输出
                     static QRegularExpression thinkRegex("<think>.*?</think>", QRegularExpression::DotMatchesEverythingOption);
                     content.remove(thinkRegex);
                     

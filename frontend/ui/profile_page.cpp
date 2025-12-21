@@ -46,7 +46,6 @@ void ProfilePage::setupUI()
     contentLayout->setContentsMargins(30, 30, 30, 40);
     contentLayout->setSpacing(25);
     
-    // ========== 顶部欢迎区域 ==========
     QWidget *headerWidget = new QWidget();
     headerWidget->setObjectName("ProfileHeader");
     headerWidget->setStyleSheet(R"(
@@ -120,7 +119,6 @@ void ProfilePage::setupUI()
     
     contentLayout->addWidget(headerWidget);
     
-    // ========== 统计卡片区域 ==========
     QWidget *statsWidget = new QWidget();
     QHBoxLayout *statsLayout = new QHBoxLayout(statsWidget);
     statsLayout->setContentsMargins(0, 0, 0, 0);
@@ -166,7 +164,6 @@ void ProfilePage::setupUI()
     
     contentLayout->addWidget(statsWidget);
     
-    // ========== 个人信息卡片 ==========
     QWidget *infoCard = new QWidget();
     infoCard->setObjectName("InfoCard");
     infoCard->setStyleSheet(R"(
@@ -282,8 +279,7 @@ void ProfilePage::setupUI()
     infoLayout->addWidget(m_saveBtn, 0, Qt::AlignRight);
     
     contentLayout->addWidget(infoCard);
-    
-    // ========== 安全设置卡片 ==========
+
     QWidget *securityCard = new QWidget();
     securityCard->setObjectName("SecurityCard");
     securityCard->setStyleSheet(R"(
@@ -477,8 +473,7 @@ void ProfilePage::setupUI()
     });
     
     contentLayout->addWidget(securityCard);
-    
-    // ========== 快捷操作 ==========
+
     QWidget *actionsCard = new QWidget();
     actionsCard->setObjectName("ActionsCard");
     actionsCard->setStyleSheet(R"(

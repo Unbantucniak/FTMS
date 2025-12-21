@@ -2,7 +2,6 @@
 #include <QUuid>
 #include <QRandomGenerator>
 #include <QDateTime>
-#include <QCoreApplication>
 #include <QFileInfo>
 #include <QMutexLocker>
 #include <QThread>
@@ -18,11 +17,9 @@ DBManager* DBManager::getInstance() {
 
 DBManager::DBManager() {}
 
-// ==================== SQLite 初始化 ====================
 bool DBManager::init(const QString& dbPath) {
     m_dbPath = dbPath;
 
-    // 创建当前线程的连接用于初始化
     QSqlDatabase db = getDb();
     if (!db.isOpen()) {
         qDebug() << "❌ SQLite 数据库打开失败：" << db.lastError().text();
@@ -31,11 +28,9 @@ bool DBManager::init(const QString& dbPath) {
 
     qDebug() << "✅ SQLite 数据库连接成功：" << QFileInfo(dbPath).absoluteFilePath();
 
-    // 启用外键约束
     QSqlQuery query(db);
     query.exec("PRAGMA foreign_keys = ON;");
 
-    // 创建表结构（如果不存在）
     if (!createTables()) {
         qDebug() << "❌ 创建数据库表失败";
         return false;
@@ -67,11 +62,11 @@ QSqlDatabase DBManager::getDb() {
     return db;
 }
 
+// 初始化三张主表
 bool DBManager::createTables() {
     QSqlDatabase db = getDb();
     QSqlQuery query(db);
 
-    // 用户表
     QString createUserTable = R"(
         CREATE TABLE IF NOT EXISTS user (
             username    TEXT PRIMARY KEY,
@@ -81,7 +76,6 @@ bool DBManager::createTables() {
         )
     )";
 
-    // 航班表
     QString createFlightTable = R"(
         CREATE TABLE IF NOT EXISTS flight (
             flight_id           TEXT PRIMARY KEY,
@@ -96,7 +90,6 @@ bool DBManager::createTables() {
         )
     )";
 
-    // 订票表
     QString createTicketTable = R"(
         CREATE TABLE IF NOT EXISTS ticket (
             order_id    TEXT PRIMARY KEY,
@@ -125,7 +118,6 @@ bool DBManager::createTables() {
         return false;
     }
 
-    // 创建索引以提高查询性能
     query.exec("CREATE INDEX IF NOT EXISTS idx_flight_departure ON flight(departure)");
     query.exec("CREATE INDEX IF NOT EXISTS idx_flight_destination ON flight(destination)");
     query.exec("CREATE INDEX IF NOT EXISTS idx_flight_depart_time ON flight(depart_time)");
@@ -136,7 +128,7 @@ bool DBManager::createTables() {
     return true;
 }
 
-//User
+// 注册
 bool DBManager::registerUser(const User& user) {
     QSqlDatabase db = getDb();
     if (!db.isOpen()) return false;
@@ -209,7 +201,6 @@ bool DBManager::changePassword(const QString& username, const QString& oldPass, 
 
     QSqlQuery query(db);
     
-    // 验证旧密码
     query.prepare("SELECT password FROM user WHERE username = :username");
     query.bindValue(":username", username);
     
@@ -223,7 +214,6 @@ bool DBManager::changePassword(const QString& username, const QString& oldPass, 
         return false;
     }
     
-    // 更新密码
     query.prepare("UPDATE user SET password = :newPass WHERE username = :username");
     query.bindValue(":newPass", newPass);
     query.bindValue(":username", username);
@@ -249,7 +239,7 @@ bool DBManager::isUserExist(const QString& username) {
     return false;
 }
 
-//Query Flights
+// 查询航班（支持部分条件为空）
 QList<Flight> DBManager::queryFlights(const QString& departure, const QString& destination, const QDate& date) {
     QList<Flight> flights;
     QSqlDatabase db = getDb();
@@ -260,14 +250,30 @@ QList<Flight> DBManager::queryFlights(const QString& departure, const QString& d
     
     if (!departure.isEmpty())   sql += " AND departure LIKE :departure";
     if (!destination.isEmpty()) sql += " AND destination LIKE :destination";
-    if (date.isValid())         sql += " AND DATE(depart_time) = :date";
+    
+    // 日期检索逻辑
+    if (date.isValid()) {
+        QDate startDate = date.addDays(-3);
+        QDate endDate = date.addDays(3);
+        sql += " AND DATE(depart_time) BETWEEN :startDate AND :endDate";
+    } else {
+        // 无日期限制，仅查询未来航班
+        sql += " AND DATE(depart_time) >= :today";
+    }
+    
     sql += " ORDER BY depart_time ASC";
 
     QSqlQuery query(db);
     query.prepare(sql);
     if (!departure.isEmpty())   query.bindValue(":departure", "%" + departure + "%");
     if (!destination.isEmpty()) query.bindValue(":destination", "%" + destination + "%");
-    if (date.isValid())         query.bindValue(":date", date.toString("yyyy-MM-dd"));
+    
+    if (date.isValid()) {
+        query.bindValue(":startDate", date.addDays(-3).toString("yyyy-MM-dd"));
+        query.bindValue(":endDate", date.addDays(3).toString("yyyy-MM-dd"));
+    } else {
+        query.bindValue(":today", QDate::currentDate().toString("yyyy-MM-dd"));
+    }
 
     if (query.exec()) {
         while (query.next()) {
@@ -379,6 +385,7 @@ bool DBManager::addFlight(const Flight& flight) {
     return query.exec();
 }
 
+// 不指定座位的随机订票
 QString DBManager::bookTicket(const QString& username, const QString& flight_id) {
     QSqlDatabase db = getDb();
     if (!db.isOpen()) return "";
@@ -400,14 +407,37 @@ QString DBManager::bookTicket(const QString& username, const QString& flight_id)
         return "";
     }
 
-    // 生成订单和座位
+    query.prepare("SELECT seat_number FROM ticket WHERE flight_id = :flight_id");
+    query.bindValue(":flight_id", flight_id);
+    QSet<QString> occupiedSeats;
+    if (query.exec()) {
+        while (query.next()) {
+            occupiedSeats.insert(query.value(0).toString());
+        }
+    }
+
+    QString seatNumber;
+    int attempts = 0;
+    while (attempts < 100) {
+        int row = QRandomGenerator::global()->bounded(1, 31);
+        char col = 'A' + QRandomGenerator::global()->bounded(0, 6);
+        seatNumber = QString("%1%2").arg(row).arg(col);
+        
+        if (!occupiedSeats.contains(seatNumber)) {
+            break;
+        }
+        attempts++;
+    }
+    
+    if (attempts >= 100) {
+        db.rollback();
+        qDebug() << "订票失败：无法找到空闲座位";
+        return "";
+    }
+
     QString orderId = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    int row = QRandomGenerator::global()->bounded(1, 31);
-    char col = 'A' + QRandomGenerator::global()->bounded(0, 6);
-    QString seatNumber = QString("%1%2").arg(row).arg(col);
     QString bookTime = QDateTime::currentDateTime().toString(Qt::ISODate);
 
-    // 插入订单
     query.prepare("INSERT INTO ticket (order_id, username, flight_id, book_time, status, seat_number) "
                   "VALUES (:order_id, :username, :flight_id, :book_time, 1, :seat_number)");
     query.bindValue(":order_id", orderId);
@@ -421,7 +451,6 @@ QString DBManager::bookTicket(const QString& username, const QString& flight_id)
         return "";
     }
 
-    // 更新余票
     query.prepare("UPDATE flight SET rest_seats = rest_seats - 1 WHERE flight_id = :flight_id");
     query.bindValue(":flight_id", flight_id);
     if (!query.exec()) {
@@ -433,6 +462,7 @@ QString DBManager::bookTicket(const QString& username, const QString& flight_id)
     return orderId;
 }
 
+// 指定座位订票（来自前端座位图）
 QString DBManager::bookTicketWithSeat(const QString& username, const QString& flightId, const QString& seatNumber) {
     QSqlDatabase db = getDb();
     if (!db.isOpen()) return "";
@@ -441,7 +471,6 @@ QString DBManager::bookTicketWithSeat(const QString& username, const QString& fl
 
     QSqlQuery query(db);
     
-    // 检查余票
     query.prepare("SELECT rest_seats FROM flight WHERE flight_id = :flightId");
     query.bindValue(":flightId", flightId);
     if (!query.exec() || !query.next() || query.value(0).toInt() <= 0) {
@@ -449,7 +478,6 @@ QString DBManager::bookTicketWithSeat(const QString& username, const QString& fl
         return "";
     }
 
-    // 检查座位是否已被占用
     query.prepare("SELECT COUNT(*) FROM ticket WHERE flight_id = :flightId AND seat_number = :seat");
     query.bindValue(":flightId", flightId);
     query.bindValue(":seat", seatNumber);
@@ -527,7 +555,6 @@ bool DBManager::cancelTicket(const QString& orderId) {
 
     QSqlQuery query(db);
     
-    // 获取航班ID
     query.prepare("SELECT flight_id FROM ticket WHERE order_id = :orderId");
     query.bindValue(":orderId", orderId);
     if (!query.exec() || !query.next()) {
@@ -536,7 +563,6 @@ bool DBManager::cancelTicket(const QString& orderId) {
     }
     QString flightId = query.value(0).toString();
 
-    // 删除订单
     query.prepare("DELETE FROM ticket WHERE order_id = :orderId");
     query.bindValue(":orderId", orderId);
     if (!query.exec()) {
@@ -544,7 +570,6 @@ bool DBManager::cancelTicket(const QString& orderId) {
         return false;
     }
 
-    // 恢复座位
     query.prepare("UPDATE flight SET rest_seats = rest_seats + 1 WHERE flight_id = :flightId");
     query.bindValue(":flightId", flightId);
     if (!query.exec()) {
@@ -556,7 +581,8 @@ bool DBManager::cancelTicket(const QString& orderId) {
     return true;
 }
 
-bool DBManager::changeTicket(const QString& orderId, const QString& newFlightId) {
+// 改签时沿用订票的流程，只不过替换航班
+bool DBManager::changeTicket(const QString& orderId, const QString& newFlightId, const QString& seatNumber) {
     QSqlDatabase db = getDb();
     if (!db.isOpen()) return false;
 
@@ -564,7 +590,6 @@ bool DBManager::changeTicket(const QString& orderId, const QString& newFlightId)
 
     QSqlQuery query(db);
     
-    // 获取原订单信息及原航班的出发地/目的地
     query.prepare("SELECT t.username, t.flight_id, f.departure, f.destination "
                   "FROM ticket t JOIN flight f ON t.flight_id = f.flight_id "
                   "WHERE t.order_id = :orderId");
@@ -578,32 +603,36 @@ bool DBManager::changeTicket(const QString& orderId, const QString& newFlightId)
     QString oldDeparture = query.value(2).toString();
     QString oldDestination = query.value(3).toString();
 
-    // 检查新航班的出发地和目的地是否匹配
     query.prepare("SELECT departure, destination, rest_seats FROM flight WHERE flight_id = :flightId");
     query.bindValue(":flightId", newFlightId);
     if (!query.exec() || !query.next()) {
         db.rollback();
-        return false;  // 新航班不存在
+        return false;
     }
     QString newDeparture = query.value(0).toString();
     QString newDestination = query.value(1).toString();
     int restSeats = query.value(2).toInt();
     
-    // 验证航线是否相同
     if (oldDeparture != newDeparture || oldDestination != newDestination) {
         db.rollback();
         qDebug() << "改签失败：航线不匹配 - 原航线:" << oldDeparture << "→" << oldDestination
                  << ", 新航线:" << newDeparture << "→" << newDestination;
-        return false;  // 航线不匹配
+        return false;
     }
     
-    // 检查新航班余票
     if (restSeats <= 0) {
         db.rollback();
         return false;
     }
 
-    // 删除原订单
+    query.prepare("SELECT COUNT(*) FROM ticket WHERE flight_id = :flightId AND seat_number = :seat");
+    query.bindValue(":flightId", newFlightId);
+    query.bindValue(":seat", seatNumber);
+    if (!query.exec() || !query.next() || query.value(0).toInt() > 0) {
+        db.rollback();
+        return false;
+    }
+
     query.prepare("DELETE FROM ticket WHERE order_id = :orderId");
     query.bindValue(":orderId", orderId);
     if (!query.exec()) {
@@ -611,7 +640,6 @@ bool DBManager::changeTicket(const QString& orderId, const QString& newFlightId)
         return false;
     }
 
-    // 恢复原航班座位
     query.prepare("UPDATE flight SET rest_seats = rest_seats + 1 WHERE flight_id = :flightId");
     query.bindValue(":flightId", oldFlightId);
     if (!query.exec()) {
@@ -619,11 +647,7 @@ bool DBManager::changeTicket(const QString& orderId, const QString& newFlightId)
         return false;
     }
 
-    // 创建新订单
     QString newOrderId = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    int row = QRandomGenerator::global()->bounded(1, 31);
-    char col = 'A' + QRandomGenerator::global()->bounded(0, 6);
-    QString seatNumber = QString("%1%2").arg(row).arg(col);
     QString bookTime = QDateTime::currentDateTime().toString(Qt::ISODate);
 
     query.prepare("INSERT INTO ticket (order_id, username, flight_id, book_time, status, seat_number) "
@@ -638,7 +662,6 @@ bool DBManager::changeTicket(const QString& orderId, const QString& newFlightId)
         return false;
     }
 
-    // 扣减新航班座位
     query.prepare("UPDATE flight SET rest_seats = rest_seats - 1 WHERE flight_id = :flightId");
     query.bindValue(":flightId", newFlightId);
     if (!query.exec()) {
