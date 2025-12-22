@@ -8,7 +8,7 @@ int main(int argc, char *argv[]) {
 
     qDebug() << "\n=== 启动后端服务器 ===";
 
-    // 初始化 SQLite 数据库（自动创建表结构和示例数据）
+    // 初始化 SQLite 数据库
     bool dbConnected = DBManager::getInstance()->init("ftms.db");
     if (!dbConnected) {
         qCritical() << "数据库初始化失败，程序退出！";

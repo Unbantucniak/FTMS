@@ -247,8 +247,7 @@ def main():
         print("请先运行一次后端服务器以创建数据库，然后再运行此脚本。")
         return
     
-    print(f"\n正在生成 10000 条航班数据...")
-    flights = generate_flights(10000)
+    flights = generate_flights(1000000)
     print(f"✓ 已生成 {len(flights)} 条航班数据")
     
     print(f"\n正在导入数据库...")

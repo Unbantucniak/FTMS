@@ -89,7 +89,7 @@ void FlightCard::setupUI() {
     if(!m_flight.arrival_airport.isEmpty()) arrLayout->addWidget(arrAirport);
     arrLayout->setAlignment(Qt::AlignCenter);
 
-    mainLayout->addLayout(idLayout); // Flight ID + date
+    mainLayout->addLayout(idLayout);
     mainLayout->addStretch();
     mainLayout->addLayout(depLayout);
     mainLayout->addLayout(midLayout);

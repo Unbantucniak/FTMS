@@ -219,7 +219,6 @@ void MainWindow::setupFlightPage()
     QLabel *dateLabel = new QLabel("📅 出发日期");
     dateLabel->setObjectName("FieldLabel");
     
-    // 日期限制复选框
     m_dateLimitCheckBox = new QCheckBox("开启日期查询（选定日期前后三天）");
     m_dateLimitCheckBox->setChecked(true);
     m_dateLimitCheckBox->setCursor(Qt::PointingHandCursor);
@@ -514,7 +513,7 @@ void MainWindow::onCitiesReceived(const QStringList& cities)
     m_departureCombo->clear();
     m_destinationCombo->clear();
     
-    m_departureCombo->addItem("");  // 空选项
+    m_departureCombo->addItem(""); 
     m_destinationCombo->addItem("");
     
     for (const QString& city : cities) {

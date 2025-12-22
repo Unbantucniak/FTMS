@@ -294,7 +294,6 @@ void ClientHandler::handleGetOccupiedSeatsRequest(const QByteArray& data) {
     qDebug() << "已占座位请求 - 航班：" << flightId << " 已占座位数：" << seats.size();
 }
 
-// 小助手：先拼 payload 再写长度
 void ClientHandler::sendResponse(ResponseStatus status, const QByteArray& data) {
     QByteArray payload;
     QDataStream payloadOut(&payload, QIODevice::WriteOnly);

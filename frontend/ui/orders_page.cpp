@@ -26,7 +26,6 @@ OrdersPage::OrdersPage(QWidget *parent) : QWidget(parent)
 
 void OrdersPage::setOrders(const QList<Order>& orders)
 {
-    // Clear existing
     QLayoutItem *item;
     while ((item = m_layout->takeAt(0)) != nullptr) {
         if (item->widget()) delete item->widget();

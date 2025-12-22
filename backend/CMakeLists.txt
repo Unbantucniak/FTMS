@@ -11,7 +11,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Network Sql Widgets)
 
-# 引用根目录定义的公共头文件路径
 if(NOT DEFINED COMMON_INCLUDE_DIR)
     set(COMMON_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../common/include")
 endif()

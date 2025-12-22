@@ -12,7 +12,6 @@ class SeatSelectionDialog : public QDialog
 {
     Q_OBJECT
 public:
-    // totalSeats: 航班总座位数，用于动态生成座位布局
     explicit SeatSelectionDialog(const QString& flightId, const QStringList& occupiedSeats, 
                                   int totalSeats = 180, QWidget *parent = nullptr);
     QString selectedSeat() const { return m_selectedSeat; }
@@ -33,7 +32,7 @@ private:
     
     int m_totalSeats;
     int m_rows;
-    static const int COLS = 6; // A-F
+    static const int COLS = 6; 
 };
 
 #endif // SEAT_SELECTION_DIALOG_H

@@ -535,13 +535,6 @@ inline const QString LOGIN_DARK_STYLE = R"(
     QLabel { color: #e0e0e0; font-size: 14px; font-weight: 500; }
 )";
 
-// 判断系统是否使用深色模式（简单实现）
-inline bool isSystemDarkMode() {
-    // 可以通过读取系统设置来判断，这里简化处理
-    // Windows 10/11 可以通过注册表或 API 判断
-    return false; // 默认浅色
-}
-
-} // namespace Theme
+} 
 
 #endif // THEME_MANAGER_H

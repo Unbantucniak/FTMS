@@ -45,7 +45,6 @@ set(HEADERS
     ${COMMON_INCLUDE_DIR}/data_model.h
 )
 
-# 已移除 .ui 文件依赖，所有 UI 均使用纯代码构建
 
 add_executable(QtDesktopClient
     ${SOURCES}
